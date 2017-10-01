@@ -6,7 +6,7 @@ def load(path, n_channels, name="unnamed_image_decode"):
 	"""
 	Loads the files contained in some directory as images.
 
-	The files must be in PNG or JPEG format.
+	The images must be in PNG or JPEG format. The images must be of the same dimensions.
 
 	Args:
 		path: A string giving the path of the directory.
@@ -14,7 +14,7 @@ def load(path, n_channels, name="unnamed_image_decode"):
 		name: The base name that should be used to name TensorFlow nodes.
 
 	Returns:
-		A list of `Tensor`s of type `uint8`. Each `Tensor` gives the data for one image and has shape `[height, width, num_channels]`.
+		A `Tensor` of type `uint8`. Has shape `[n_images, height, width, num_channels]`.
 
 	Raises:
 		ValueError: Some image in `path` did not have `n_channels` channels or some image in `path` was of type not in {PNG, JPEG}.
@@ -23,7 +23,7 @@ def load(path, n_channels, name="unnamed_image_decode"):
 	for i, filename in enumerate(os.listdir(path)):
 		full_path = os.path.join(path, filename)
 		file = open(full_path, "rb")
-		image = tf.image.decode_image(file.read(), n_channels, name + "_" + str(i))
+		image = tf.image.decode_image(file.read(), n_channels, name + "_decode_image_" + str(i))
 		file.close()
-		images.append(image)
-	return images
+		images.append(tf.expand_dims(image, 0))
+	return tf.concat(images, 0, name + "_concat")
