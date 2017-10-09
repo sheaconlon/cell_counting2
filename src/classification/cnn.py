@@ -173,3 +173,37 @@ class PoolingLayer(Layer):
 			data_format=Layer.DATA_FORMAT,
 			name=self._name
 		)
+
+class TransferLayer(Layer):
+	"""
+	A transfer layer of a neural network.
+	"""
+
+	TYPE = "TRAN"
+
+	def __init__(self, transfer_fn, name):
+		"""
+		Create a transfer layer.
+
+		Args:
+			transfer_fn (func(tf.Tensor, str) -> tf.Tensor): The transfer function. The input
+				`tf.Tensor` will have dtype `tf.float32` and the returned tensor must as well.
+				The second argument gives the name to use for any `tf.Tensor`s created.
+			name (str): The name to use for any `tf.Tensor`s created.
+		"""
+		super().__init__(TransferLayer.TYPE)
+		self._transfer_fn = transfer_fn
+		self._name = name
+
+	def output(self, previous):
+		"""
+		Get the output of this layer.
+
+		Args:
+			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+
+		Returns:
+			A `tf.Tensor` representing the output of this layer.
+		"""
+		super().output(previous)
+		return self._transfer_fn(previous, self._name)
