@@ -32,7 +32,7 @@ class Layer(object):
 		Get the output of this layer.
 
 		Args:
-			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+			previous (tf.Tensor): The output of the layer before this one.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -222,6 +222,7 @@ class FlatLayer(Layer):
 		Args:
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
+		super().__init__(FlatLayer.TYPE)
 		self._name = name
 
 	def output(self, previous):
@@ -234,6 +235,7 @@ class FlatLayer(Layer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
+		super().output(previous)
 		old_shape = tf.shape(previous, self._name)
 		new_shape = tf.concat(
 			[old_shape[0], old_shape[1] * old_shape[1] * old_shape[2]],
