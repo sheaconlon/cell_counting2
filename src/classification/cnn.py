@@ -243,3 +243,59 @@ class FlatLayer(Layer):
 			name=self._name
 		)
 		return tf.reshape(previous, new_shape, name=self._name)
+
+class FullLayer(Layer):
+	"""
+	A fullly-connected layer of a neural network.
+	"""
+
+	TYPE = "FULL"
+	ACTIVATION = None
+	USE_BIAS = True
+	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
+	BIAS_INITIALIZER = tf.zeros.initializer()
+	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
+	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
+	ACTIVITY_REGULARIZER = None
+	TRAINABLE = True
+	REUSE = False
+
+	def __init__(self, size, name):
+		"""
+		Create a fullly-connected layer.
+
+		Args:
+			size (int): The number of neurons for this layer. The output will have shape `[n_batches, size]`.
+			name (str): The name to use for any `tf.Tensor`s created.
+		"""
+		super().__init__(FullLayer.TYPE)
+		assert self._size >= 1:
+		self._size = size
+		self._name = name
+
+	def output(self, previous):
+		"""
+		Get the output of this layer.
+
+		Args:
+			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, size]`.
+
+		Returns:
+			A `tf.Tensor` representing the output of this layer.
+		"""
+		super().output(previous)
+		return tf.layers.dense(
+			previous,
+			self._size,
+			activation=FullLayer.ACTIVATION,
+			use_bias=FullLayer.USE_BIAS,
+			kernel_initializer=FullLayer.KERNEL_INITIALIZER,
+			bias_initializer=FullLayer.BIAS_INITIALIZER,
+			kernel_regularizer=FullLayer.KERNEL_REGULARIZER,
+			bias_regularizer=FullLayer.BIAS_REGULARIZER,
+			activity_regularizer=FullLayer.ACTIVITY_REGULARIZER,
+			trainable=FullLayer.TRAINABLE,
+			name=self._name,
+			reuse=FullLayer.REUSE
+		)
+
