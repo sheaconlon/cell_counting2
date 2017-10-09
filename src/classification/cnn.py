@@ -236,7 +236,7 @@ class FlatLayer(Layer):
 		"""
 		old_shape = tf.shape(previous, self._name)
 		new_shape = tf.concat(
-			[old_shape[0], old_shape[1] + old_shape[1], old_shape[2]],
+			[old_shape[0], old_shape[1] * old_shape[1] * old_shape[2]],
 			axis=0,
 			name=self._name
 		)
