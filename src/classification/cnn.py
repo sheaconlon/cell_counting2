@@ -207,3 +207,37 @@ class TransferLayer(Layer):
 		"""
 		super().output(previous)
 		return self._transfer_fn(previous, self._name)
+
+class FlatLayer(Layer):
+	"""
+	A flattening layer of a neural network.
+	"""
+
+	TYPE = "FLAT"
+
+	def __init__(self, name):
+		"""
+		Create a flattening layer.
+
+		Args:
+			name (str): The name to use for any `tf.Tensor`s created.
+		"""
+		self._name = name
+
+	def output(self, previous):
+		"""
+		Get the output of this layer.
+
+		Args:
+			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+
+		Returns:
+			A `tf.Tensor` representing the output of this layer.
+		"""
+		old_shape = tf.shape(previous, self._name)
+		new_shape = tf.concat(
+			[old_shape[0], old_shape[1] + old_shape[1], old_shape[2]],
+			axis=0,
+			name=self._name
+		)
+		return tf.reshape(previous, new_shape, name=self._name)
