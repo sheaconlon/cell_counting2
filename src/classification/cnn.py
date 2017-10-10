@@ -1,4 +1,140 @@
+import time
+
 import tensorflow as tf
+
+class Model(tf.estimator.Estimator):
+	"""A model."""
+
+	CONFIG = tf.estimator.RunConfig()
+	CONFIG.replace(
+		keep_checkpoint_every_n_hours=1,
+		keep_checkpoint_max=float("inf"),
+		log_step_count_steps=100,
+		save_checkpoints_secs=60,
+		tf_random_seed=42114
+	)
+	STEPS_AT_A_TIME = 1
+
+	def __init__(self, loss_fn, eval_metric_fns, optimizer_fn, directory, name):
+		"""
+		Create a model.
+
+		Args:
+			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): The loss function. It accepts
+				the correct outputs for a batch and the predicted outputs for a batch, both as
+				`tf.Tensor`s with shape `[n_batches, output_dim]`.
+			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor))): A dictionary from evaluation
+				metric names to evaluation metric functions. Each evaluation metric function accepts
+				the correct outputs for a batch and the predicted outputs for a batch, both as
+				`tf.Tensor`s with shape `[n_batches, output_dim]`.
+			optimizer_fn (func() -> tf.train.Optimizer): The optimizer function. It takes no
+				arguments and returns a `tf.train.Optimizer`, which will be used to minimize the loss.
+			directory (str): The path to the directory where this model's checkpoints should be saved.
+			name (str): The name to use for any `tf.Tensor`s created.
+
+		"""
+		self._loss_fn = loss_fn
+		self._eval_metric_fns = eval_metric_fns
+		self._optimizer_fn = optimizer_fn
+		self._name = name
+		super().__init__(self._model_fn, model_dir=directory, config=Model.CONFIG, params=None)
+
+	def _model_fn(self, features, labels, mode, params, config):
+		predictions = self._output()
+		if mode == tf.estimator.ModeKeys.PREDICT:
+		    return tf.estimator.EstimatorSpec(
+		        mode=mode,
+		        predictions={"predictions": predictions}
+		    )
+
+		loss = self._loss_fn(labels, predictions)
+		eval_metrics = {name: metric_fn() for name, metric_fn in self._eval_metric_fns}
+		optimizer = self._optimizer_fn() # TODO: Pass params to the *fns.
+		train_op = optimizer.minimize(
+		    loss=loss,
+		    global_step=tf.train.get_global_step()
+		)
+		return tf.estimator.EstimatorSpec(
+		    mode=mode,
+		    loss=loss,
+		    train_op=train_op,
+		    eval_metric_ops=eval_metrics
+		)
+
+	def _output(self, features):
+		raise NotImplementedError
+
+	def train_(self, data_fn, duration):
+		"""
+		Train this model.
+
+		Args:
+			data_fn (func() -> tuple(tf.Tensor, tf.Tensor)): Function to supply training data.
+				On each call, returns a different tuple of input data and correct output data.
+				If it raises `StopIteration`, then the round of training stops.
+			duration (int): The number of seconds to train for.
+		"""
+		start = time.time()
+		while time.time() - start < duration:
+			self.train(data_fn, hooks=None, steps=Model.STEPS_AT_A_TIME, max_steps=None)
+
+	def evaluate_(self, data_fn):
+		"""
+		Evaluate this model.
+
+		Args:
+			data_fn (func() -> tuple(tf.Tensor, tf.Tensor)): Function to supply test data.
+				On each call, returns a different tuple of input data and correct output data.
+				If it raises `StopIteration`, then evaluation stops.
+
+		Returns:
+			Evaluation metrics for the given test data. A `(dict(str: tf.Tensor))`, where each
+				entry corresponds to an evaluation metric function passed in upon construction.
+		"""
+		return self.evaluate(data_fn, steps=Model.STEPS_AT_A_TIME, hooks=None, checkpoint_path=None, name=self._name)
+
+	def predict_(self, data_fn):
+		"""
+		Predict using this model.
+
+		Args:
+			data_fn (func() -> tf.Tensor): Function to supply prediction input data. On each call,
+				returns different input data. If it raises `StopIteration`, then prediction stops.
+
+		Returns:
+			Predictions for the given prediction input data.
+		"""
+		return self.evaluate(data_fn, predict_keys=None, hooks=None, checkpoint_path=None)
+
+class NeuralNet(Model):
+	"""A neural network."""
+
+	def __init__(self, layers, loss_fn, eval_metric_fns, optimizer_fn, directory, name):
+		"""
+		Create a neural network.
+
+		Args:
+			layers (list of `Layer`): The layers for the network.
+			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): The loss function. It accepts
+				the correct outputs for a batch and the predicted outputs for a batch, both as
+				`tf.Tensor`s with shape `[n_batches, output_dim]`.
+			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor))): A dictionary from evaluation
+				metric names to evaluation metric functions. Each evaluation metric function accepts
+				the correct outputs for a batch and the predicted outputs for a batch, both as
+				`tf.Tensor`s with shape `[n_batches, output_dim]`.
+			optimizer_fn (func() -> tf.train.Optimizer): The optimizer function. It takes no
+				arguments and returns a `tf.train.Optimizer`, which will be used to minimize the loss.
+			directory (str): The path to the directory where this model's checkpoints should be saved.
+			name (str): The name to use for any `tf.Tensor`s created.
+		"""
+		super().__init__(loss_fn, eval_metric_fns, optimizer_fn, directory, name)
+		self._layers = layers
+
+	def _output(self, features):
+		previous = features
+		for layer in self._layers:
+			previous = layer.output(previous)
+		return previous
 
 class Layer(object):
 	TYPES = set(["CONV", "POOL", "TRAN", "FLAT", "FULL"])
