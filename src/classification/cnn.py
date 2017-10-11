@@ -23,10 +23,11 @@ class Model(tf.estimator.Estimator):
 			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): The loss function. It accepts
 				the correct outputs for a batch and the predicted outputs for a batch, both as
 				`tf.Tensor`s with shape `[n_batches, output_dim]`.
-			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor))): A dictionary from evaluation
-				metric names to evaluation metric functions. Each evaluation metric function accepts
-				the correct outputs for a batch and the predicted outputs for a batch, both as
-				`tf.Tensor`s with shape `[n_batches, output_dim]`.
+			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor) -> (tf.Tensor, tf.Tensor))):
+				A dictionary from evaluation metric names to evaluation metric functions. Each
+				evaluation metric function accepts the correct outputs for a batch and the
+				predicted outputs for a batch, both as `tf.Tensor`s with shape `[n_batches, output_dim]`.
+				See examples in `tf.metrics` for information on return values.
 			optimizer_fn (func() -> tf.train.Optimizer): The optimizer function. It takes no
 				arguments and returns a `tf.train.Optimizer`, which will be used to minimize the loss.
 			directory (str): The path to the directory where this model's checkpoints should be saved.
@@ -40,7 +41,7 @@ class Model(tf.estimator.Estimator):
 		super().__init__(self._model_fn, model_dir=directory, config=Model.CONFIG, params=None)
 
 	def _model_fn(self, features, labels, mode, params, config):
-		predictions = self._output()
+		predictions = self._output(features)
 		if mode == tf.estimator.ModeKeys.PREDICT:
 		    return tf.estimator.EstimatorSpec(
 		        mode=mode,
@@ -48,7 +49,7 @@ class Model(tf.estimator.Estimator):
 		    )
 
 		loss = self._loss_fn(labels, predictions)
-		eval_metrics = {name: metric_fn() for name, metric_fn in self._eval_metric_fns}
+		eval_metrics = {name: metric_fn(labels, predictions) for name, metric_fn in self._eval_metric_fns.items()}
 		optimizer = self._optimizer_fn() # TODO: Pass params to the *fns.
 		train_op = optimizer.minimize(
 		    loss=loss,
@@ -64,7 +65,18 @@ class Model(tf.estimator.Estimator):
 	def _output(self, features):
 		raise NotImplementedError
 
-	def train_(self, data_fn, duration):
+	def train_(self, data_fn):
+		"""
+		Train this model.
+
+		Args:
+			data_fn (func() -> tuple(tf.Tensor, tf.Tensor)): Function to supply training data.
+				On each call, returns a different tuple of input data and correct output data.
+				If it raises `StopIteration`, then the round of training stops.
+		"""
+		self.train(data_fn, hooks=None, steps=None, max_steps=None)
+
+	def train_duration_(self, data_fn, duration):
 		"""
 		Train this model.
 
@@ -118,9 +130,9 @@ class NeuralNet(Model):
 			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): The loss function. It accepts
 				the correct outputs for a batch and the predicted outputs for a batch, both as
 				`tf.Tensor`s with shape `[n_batches, output_dim]`.
-			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor))): A dictionary from evaluation
-				metric names to evaluation metric functions. Each evaluation metric function accepts
-				the correct outputs for a batch and the predicted outputs for a batch, both as
+			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor)) -> tf.Tensor): A dictionary from
+				evaluation metric names to evaluation metric functions. Each evaluation metric function
+				accepts the correct outputs for a batch and the predicted outputs for a batch, both as
 				`tf.Tensor`s with shape `[n_batches, output_dim]`.
 			optimizer_fn (func() -> tf.train.Optimizer): The optimizer function. It takes no
 				arguments and returns a `tf.train.Optimizer`, which will be used to minimize the loss.
@@ -173,7 +185,7 @@ class Layer(object):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		assert isinstance(previous, tf.Tensor)
+		assert type(previous) == tf.Tensor
 
 class ConvolutionalLayer(Layer):
 	"""
@@ -186,7 +198,7 @@ class ConvolutionalLayer(Layer):
 	ACTIVATION = None
 	USE_BIAS = True
 	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	BIAS_INITIALIZER = tf.zeros.initializer()
+	BIAS_INITIALIZER = tf.zeros_initializer()
 	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	ACTIVITY_REGULARIZER = None
@@ -206,10 +218,10 @@ class ConvolutionalLayer(Layer):
 		"""
 		super().__init__(ConvolutionalLayer.TYPE)
 		assert isinstance(n_filters, int)
-		assert n_filters >= 1:
+		assert n_filters >= 1
 		assert isinstance(window_side, int)
 		assert window_side >= 1
-		assert window_side % 2 == 1:
+		assert window_side % 2 == 1
 		assert isinstance(window_stride, int)
 		assert window_stride >= 1
 		assert padding_method in ConvolutionalLayer.PADDING_METHODS
@@ -234,7 +246,7 @@ class ConvolutionalLayer(Layer):
 			previous,
 			self._n_filters,
 			self._window_side,
-			stides=self._window_stride,
+			strides=self._window_stride,
 			padding=self._padding_method,
 			data_format=Layer.DATA_FORMAT,
 			dilation_rate=ConvolutionalLayer.DILATION_RATE,
@@ -247,7 +259,7 @@ class ConvolutionalLayer(Layer):
 			activity_regularizer=ConvolutionalLayer.ACTIVITY_REGULARIZER,
 			trainable=ConvolutionalLayer.TRAINABLE,
 			name=self._name,
-			resuse=ConvolutionalLayer.REUSE
+			reuse=ConvolutionalLayer.REUSE
 		)
 
 class PoolingLayer(Layer):
@@ -372,13 +384,7 @@ class FlatLayer(Layer):
 			A `tf.Tensor` representing the output of this layer.
 		"""
 		super().output(previous)
-		old_shape = tf.shape(previous, self._name)
-		new_shape = tf.concat(
-			[old_shape[0], old_shape[1] * old_shape[1] * old_shape[2]],
-			axis=0,
-			name=self._name
-		)
-		return tf.reshape(previous, new_shape, name=self._name)
+		return tf.contrib.layers.flatten(previous, outputs_collections=None, scope=None)
 
 class FullLayer(Layer):
 	"""
@@ -389,7 +395,7 @@ class FullLayer(Layer):
 	ACTIVATION = None
 	USE_BIAS = True
 	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	BIAS_INITIALIZER = tf.zeros.initializer()
+	BIAS_INITIALIZER = tf.zeros_initializer()
 	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	ACTIVITY_REGULARIZER = None
@@ -405,7 +411,7 @@ class FullLayer(Layer):
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(FullLayer.TYPE)
-		assert self._size >= 1:
+		assert size >= 1
 		self._size = size
 		self._name = name
 
