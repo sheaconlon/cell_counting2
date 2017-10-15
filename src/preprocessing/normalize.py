@@ -1,7 +1,5 @@
 import tensorflow as tf
 
-MEDIAN_JITTER = tf.constant(1e-8)
-
 def smdm_normalize(images, window, padding, name="unnamed_smdm_normalize"):
 	"""
 	Normalizes an image using the "divide by global median, subtract local mean" approach.
@@ -19,6 +17,8 @@ def smdm_normalize(images, window, padding, name="unnamed_smdm_normalize"):
 	Throws:
 		ValueError: The window size was even.
 	"""
+	MEDIAN_JITTER = tf.constant(1e-8)
+	
 	if window % 2 == 0:
 		raise ValueError("attempted to smdm_normalize() with even-sized window")
 

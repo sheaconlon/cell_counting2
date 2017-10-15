@@ -4,36 +4,24 @@ import tensorflow as tf
 
 from src.preprocessing import load
 
+import os
+
 class LoadTestCase(unittest.TestCase):
 	"""Tests for load.py."""
 
-	PATH = "test/preprocessing/load_test_load"
-	CHANNELS = 3
-	SIZE = (458, 370)
-	TEST_1_LOCATION = (156, 191)
-	TEST_1_COLOR = (251, 41, 26)
-	TEST_2_LOCATION = (10, 10)
-	TEST_2_COLOR = (255, 255, 255)
-	COLOR_DELTA = 5
-	N_IMAGES = 2
-
-	def test_load_load(self):
-		"""Does load() correctly load example PNG and JPEG files?"""
+	def test_load_images_and_masks(self):
+		"""Does load_images_and_masks() work?"""
 		sess = tf.Session()
-		images = load.load(LoadTestCase.PATH, LoadTestCase.CHANNELS)
+		images, masks = load.load_images_and_masks(
+			os.path.join(os.path.abspath(os.path.dirname(__file__)), "test_load/test_load_images_and_masks"),
+			("1", "10")
+		)
 		self.assertEqual(sess.run(tf.rank(images)), 4)
-		self.assertTupleEqual(tuple(sess.run(tf.shape(images))), (LoadTestCase.N_IMAGES, LoadTestCase.SIZE[1], LoadTestCase.SIZE[0], LoadTestCase.CHANNELS))
-		for image in range(LoadTestCase.N_IMAGES):
-			for channel in range(LoadTestCase.CHANNELS):
-				self.assertAlmostEqual(sess.run(images[image, LoadTestCase.TEST_1_LOCATION[1], LoadTestCase.TEST_1_LOCATION[0], channel]), LoadTestCase.TEST_1_COLOR[channel], delta=LoadTestCase.COLOR_DELTA)
-				self.assertAlmostEqual(sess.run(images[image, LoadTestCase.TEST_2_LOCATION[1], LoadTestCase.TEST_2_LOCATION[0], channel]), LoadTestCase.TEST_2_COLOR[channel], delta=LoadTestCase.COLOR_DELTA)
-
-	NAME = "testname"
-
-	def test_load_names(self):
-		"""Does load() name the nodes it creates properly?"""
-		images = load.load(LoadTestCase.PATH, LoadTestCase.CHANNELS, LoadTestCase.NAME)
-		self.assertTrue(images.name.startswith(LoadTestCase.NAME))
+		self.assertEqual(sess.run(tf.rank(masks)), 4)
+		self.assertTupleEqual(tuple(sess.run(tf.shape(images))), (2, 2448, 2448, 3))
+		self.assertTupleEqual(tuple(sess.run(tf.shape(masks))), (2, 2448, 2448, 1))
+		self.assertTupleEqual(tuple(sess.run(images[0, 1336, 1356, :])), (136, 131, 102))
+		self.assertEqual(sess.run(masks[1, 1116, 1468, 0]), 6)
 
 if __name__ == "__main__":
 	unittest.main()

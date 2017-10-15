@@ -103,7 +103,7 @@ class Model(tf.estimator.Estimator):
 			Evaluation metrics for the given test data. A `(dict(str: tf.Tensor))`, where each
 				entry corresponds to an evaluation metric function passed in upon construction.
 		"""
-		return self.evaluate(data_fn, steps=Model.STEPS_AT_A_TIME, hooks=None, checkpoint_path=None, name=self._name)
+		return self.evaluate(data_fn, hooks=None, checkpoint_path=None, name=self._name)
 
 	def predict_(self, data_fn):
 		"""
@@ -185,7 +185,7 @@ class Layer(object):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		assert type(previous) == tf.Tensor
+		#assert type(previous) == tf.Tensor
 
 class ConvolutionalLayer(Layer):
 	"""
