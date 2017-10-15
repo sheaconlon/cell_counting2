@@ -1,15 +1,21 @@
 import tensorflow as tf
 
-def encode(patches, classes):
-	return patches, tf.one_hot(classes, 2)
+QUEUE_CAPCITY_FACTOR = 100
 
-def batch(patches, classes, size):
-    return tf.train.shuffle_batch(
-        (patches, classes),
-        size,
-        size*20,
-        size*5,
-        num_threads=1,
-        seed=42114,
-        enqueue_many=True
-    )
+def input_fn(patches, targets, batch_size, epochs=None):
+	with tf.Session() as data_sess:
+		patches = data_sess.run(patches)
+		targets = data_sess.run(targets)
+	underlying = tf.estimator.inputs.numpy_input_fn(
+    	{"patches":patches},
+    	y=targets,
+    	batch_size=batch_size,
+    	num_epochs=epochs,
+    	shuffle=True,
+    	queue_capacity=QUEUE_CAPCITY_FACTOR*batch_size,
+    	num_threads=1
+	)
+	def fn():
+		input_dict, targets = underlying()
+		return input_dict["patches"], targets
+	return fn

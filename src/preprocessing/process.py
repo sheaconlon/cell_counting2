@@ -40,3 +40,6 @@ def patchify(images, masks, window_side, window_stride):
     classes = tf.map_fn(_class, classes)
 
     return patches, classes
+
+def one_hot_encode(classes):
+    return tf.one_hot(classes, 2)
