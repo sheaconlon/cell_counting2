@@ -116,7 +116,7 @@ class Model(tf.estimator.Estimator):
 		Returns:
 			Predictions for the given prediction input data.
 		"""
-		return self.evaluate(data_fn, predict_keys=None, hooks=None, checkpoint_path=None)
+		return self.predict(data_fn, predict_keys=None, hooks=None, checkpoint_path=None)
 
 class NeuralNet(Model):
 	"""A neural network."""
