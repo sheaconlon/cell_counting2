@@ -13,7 +13,7 @@ class Model(tf.estimator.Estimator):
 		save_checkpoints_secs=60,
 		tf_random_seed=42114
 	)
-	STEPS_AT_A_TIME = 1
+	STEPS_AT_A_TIME = 10
 
 	def __init__(self, loss_fn, eval_metric_fns, optimizer_fn, directory, name):
 		"""
@@ -149,7 +149,7 @@ class NeuralNet(Model):
 		return previous
 
 class Layer(object):
-	TYPES = set(["CONV", "POOL", "TRAN", "FLAT", "FULL"])
+	TYPES = set(["CONV", "POOL", "TRAN", "LRN", "FLAT", "FULL", "DROP"])
 	DATA_FORMAT = "channels_last"
 
 	"""
@@ -198,7 +198,7 @@ class ConvolutionalLayer(Layer):
 	ACTIVATION = None
 	USE_BIAS = True
 	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	BIAS_INITIALIZER = tf.zeros_initializer()
+	BIAS_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
 	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	ACTIVITY_REGULARIZER = None
@@ -211,7 +211,7 @@ class ConvolutionalLayer(Layer):
 
 		Args:
 			n_filters (int): Number of filters.
-			window_side_length (int): The side length of the sliding window for the filters, in pixels. Must be odd.
+			window_side_length (int): The side length of the sliding window for the filters, in pixels.
 			stride_length (int): The stride length of the sliding window for the filters, in pixels.
 			padding_method (str): The name of the padding method to use.
 			name (str): The name to use for any `tf.Tensor`s created.
@@ -221,7 +221,6 @@ class ConvolutionalLayer(Layer):
 		assert n_filters >= 1
 		assert isinstance(window_side, int)
 		assert window_side >= 1
-		assert window_side % 2 == 1
 		assert isinstance(window_stride, int)
 		assert window_stride >= 1
 		assert padding_method in ConvolutionalLayer.PADDING_METHODS
@@ -262,6 +261,56 @@ class ConvolutionalLayer(Layer):
 			reuse=ConvolutionalLayer.REUSE
 		)
 
+class LocalResponseNormalizationLayer(Layer):
+	"""
+	A local response normalization layer of a neural network.
+	"""
+
+	TYPE = "LRN"
+
+	def __init__(self, depth_radius, bias, alpha, beta, name):
+		"""
+		Create a local response normalization layer.
+
+		Args:
+			depth_radius (int): See `tf.nn.local_response_normalization`.
+			bias (float): See `tf.nn.local_response_normalization`.
+			alpha (float): See `tf.nn.local_response_normalization`.
+			beta (float): See `tf.nn.local_response_normalization`.
+			name (str): The name to use for any `tf.Tensor`s created.
+		"""
+		super().__init__(LocalResponseNormalizationLayer.TYPE)
+		assert isinstance(depth_radius, int)
+		assert depth_radius > 0
+		assert bias > 0
+		assert alpha > 0
+		self._depth_radius = depth_radius
+		self._bias = bias
+		self._alpha = alpha
+		self._beta = beta
+		self._name = name
+
+	def output(self, previous):
+		"""
+		Get the output of this layer.
+
+		Args:
+			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+
+		Returns:
+			A `tf.Tensor` representing the output of this layer.
+		"""
+		super().output(previous)
+		pooling_fn = None
+		return tf.nn.local_response_normalization(
+			previous,
+			depth_radius = self._depth_radius,
+			bias = self._bias,
+			alpha = self._alpha,
+			beta = self._beta,
+			name = self._name
+		)
+
 class PoolingLayer(Layer):
 	"""
 	A pooling layer of a neural network.
@@ -276,7 +325,7 @@ class PoolingLayer(Layer):
 
 		Args:
 			pooling_type (str): The type for the pooling, either `"MAX"` or `"AVG"`.
-			window_side (int): The side length of the sliding window for the pooling, in pixels. Must be odd.
+			window_side (int): The side length of the sliding window for the pooling, in pixels.
 			window_stride (int): The stride length of the sliding window for the pooling, in pixels.
 			padding_method (str): The name of the padding method to use.
 			name (str): The name to use for any `tf.Tensor`s created.
@@ -285,7 +334,6 @@ class PoolingLayer(Layer):
 		assert pooling_type in PoolingLayer.POOLING_TYPES
 		assert isinstance(window_side, int)
 		assert window_side >= 1
-		assert window_side % 2 == 1
 		assert isinstance(window_stride, int)
 		assert window_stride >= 1
 		assert padding_method in ConvolutionalLayer.PADDING_METHODS
@@ -388,14 +436,14 @@ class FlatLayer(Layer):
 
 class FullLayer(Layer):
 	"""
-	A fullly-connected layer of a neural network.
+	A fully-connected layer of a neural network.
 	"""
 
 	TYPE = "FULL"
 	ACTIVATION = None
 	USE_BIAS = True
 	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	BIAS_INITIALIZER = tf.zeros_initializer()
+	BIAS_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
 	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	ACTIVITY_REGULARIZER = None
@@ -441,3 +489,48 @@ class FullLayer(Layer):
 			reuse=FullLayer.REUSE
 		)
 
+class DropoutLayer(Layer):
+	"""
+	A dropout layer of a neural network.
+	"""
+
+	TYPE = "DROP"
+
+	def __init__(self, keep_prob, noise_shape, seed, name):
+		"""
+		Create a fullly-connected layer.
+
+		Args:
+			keep_prob (float): See `tf.nn.dropout`.
+			noise_shape (tuple of int): See `tf.nn.dropout`.
+			seed (int): See `tf.nn.dropout`.
+			name (str): The name to use for any `tf.Tensor`s created.
+		"""
+		super().__init__(DropoutLayer.TYPE)
+		assert keep_prob > 0
+		assert noise_shape is None or len(noise_shape) == 4
+		assert noise_shape is None or all(isinstance(x, int) for x in noise_shape)
+		assert noise_shape is None or all(x > 0 for x in noise_shape)
+		self._keep_prob = keep_prob
+		self._noise_shape = noise_shape
+		self._seed = seed
+		self._name = name
+
+	def output(self, previous):
+		"""
+		Get the output of this layer.
+
+		Args:
+			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, size]`.
+
+		Returns:
+			A `tf.Tensor` representing the output of this layer.
+		"""
+		super().output(previous)
+		return tf.nn.dropout(
+			previous,
+			keep_prob = self._keep_prob,
+			noise_shape = self._noise_shape,
+			seed = self._seed,
+			name = self._name
+		)
