@@ -1,6 +1,7 @@
 import os
 
 import tensorflow as tf
+import numpy as np
 
 EXTENSION = ".png"
 IMAGES_DIRECTORY = "images"
@@ -64,3 +65,15 @@ def load_images(path, names, n_channels):
 		image = tf.expand_dims(image, 0)
 		images.append(image)
 	return tf.concat(images, 0)
+
+def load_csv(path):
+	"""
+	Loads a dataset from some CSV file.
+
+	Args:
+		path (str): The path to the file.
+
+	Returns:
+		(np.ndarray of X): An array representing the CSV file.
+	"""
+	return np.loadtxt(path, ",")

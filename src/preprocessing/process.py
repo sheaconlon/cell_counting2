@@ -1,4 +1,5 @@
 import tensorflow as tf
+import scipy
 
 PADDING_TYPE = "VALID"
 
