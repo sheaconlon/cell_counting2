@@ -5,6 +5,7 @@ import openpyxl
 import os
 from scipy import misc
 import random
+import json
 
 class Dataset(object):
 	"""A dataset consisting of some examples of input/output pairs. Minimizes
@@ -14,7 +15,7 @@ class Dataset(object):
 		then these examples will be ignored.
 	"""
 
-	SEGMENT_SIZE = 5
+	SEGMENT_SIZE = 100
 
 	def __init__(self):
 		"""Create a dataset."""
@@ -64,6 +65,61 @@ class Dataset(object):
 		example_iterator = self.ImageIntegerIterator(image_dir_path, labels,
 			shape)
 		self._load_examples(example_iterator)
+
+	class MaskedImagesFromMetadataIterator(object):
+		def __init__(self, metadata, image_path_getter, mask_path_getter,
+			label_getter, shape):
+			self._metadata_iterator = iter(metadata.values())
+			self._image_path_getter = image_path_getter
+			self._mask_path_getter = mask_path_getter
+			self._label_getter = label_getter
+			self._shape = shape
+
+		def __iter__(self):
+			return self
+
+		def __next__(self):
+			example_metadata = next(self._metadata_iterator)
+
+			image_path = self._image_path_getter(example_metadata)
+			image = ndimage.imread(image_path)
+			image = misc.imresize(image, self._shape, interp="bilinear")
+			mask_path = self._mask_path_getter(example_metadata)
+			mask = ndimage.imread(mask_path)
+			mask = misc.imresize(mask, self._shape, interp="bilinear")
+			image_and_mask = np.concatenate((image, mask), axis=2)
+			label = self._label_getter(example_metadata)
+			return (image_and_mask, label)
+
+	def load_images_masks_labels_from_json(self, metadata_path, image_path_getter,
+		mask_path_getter, label_getter, shape):
+		"""Assumes there is a JSON metadata file which contains, for each
+			example, the path of an image, the path of a mask image, and a
+			label. Makes the inputs be the images concatenated with the mask
+			images along the channel dimension. Makes the outputs be the labels.
+
+		Note that this will resize the mask images, which will lead to mask
+			image values that are neither black nor white.
+
+		Args:
+			metadata_path (str): The path to the JSON metadata file.
+			image_path_getter (func(dict) -> str): A function that takes the
+				metadata for an example and returns the path to the example's
+				image.
+			mask_path_getter (func(dict) -> str): A function that takes the JSON
+				metadata for an example and returns the path to the example's
+				mask image.
+			label_getter (func(dict) -> int): A function that takes the JSON
+				metadata for an example and returns the example's label.
+			shape (tuple of int): The shape to resize the images and mask images
+				to. Should be a 3-element tuple of height, width, and channel
+				depth.
+		"""
+		metadata = json.load(open(metadata_path))
+		example_iterator = self.MaskedImagesFromMetadataIterator(metadata,
+			image_path_getter, mask_path_getter, label_getter, shape)
+		self._load_examples(example_iterator)
+
 
 	def get_batch(self, size):
 		"""Get a batch of examples.
