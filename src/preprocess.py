@@ -1,4 +1,5 @@
 import tensorflow as tf
+from sklearn.feature_extraction import image as img
 
 def smdm_normalize(images, window, padding):
 	"""
@@ -80,7 +81,7 @@ def one_hot_encode(labels, num_classes):
 	with tf.Session() as sess:
 		return sess.run(tf.one_hot(labels, num_classes))
 
-def extract_patches(image, size):
+def extract_patches(image, size, max_patches=None, seed=None):
 	"""
 	Extracts square patches from an image.
 
@@ -88,6 +89,9 @@ def extract_patches(image, size):
 		image (np.ndarray): An image. Should have shape (height, width) or
 			(height, width, num_channels).
 		size (int): The side length of a single patch.
+		max_patches (int): The maximum number of patches to extract.
+		seed (int): The seed for random selection of patches when max_patches is
+			used.
 
 	Returns:
 		(np.ndarray): Patches of the the image. Has shape
@@ -95,4 +99,5 @@ def extract_patches(image, size):
 			(num_patches, size, size, num_channels), depending on the shape
 			of the image.
 	"""
-	return image.extract_patches_2d(image, (size, size))
+	return img.extract_patches_2d(image, (size, size), max_patches=max_patches,
+		random_state=seed)
