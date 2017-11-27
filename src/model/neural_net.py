@@ -1,154 +1,38 @@
 import time
 
 import tensorflow as tf
+import numpy as np
 
-class Model(tf.estimator.Estimator):
-	"""A model."""
+from src.model import model
 
-	CONFIG = tf.estimator.RunConfig()
-	CONFIG.replace(
-		keep_checkpoint_every_n_hours=1,
-		keep_checkpoint_max=float("inf"),
-		log_step_count_steps=100,
-		save_checkpoints_secs=60,
-		tf_random_seed=42114
-	)
-	STEPS_AT_A_TIME = 10
-
-	def __init__(self, loss_fn, eval_metric_fns, optimizer_fn, directory, name):
-		"""
-		Create a model.
+class NeuralNet(model.BaseModel):
+	def __init__(self, save_dir, chkpt_save_interval, loss_fn,
+			optimizer_factory, layers):
+		"""Create a neural net.
 
 		Args:
-			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): The loss function. It accepts
-				the correct outputs for a batch and the predicted outputs for a batch, both as
-				`tf.Tensor`s with shape `[n_batches, output_dim]`.
-			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor) -> (tf.Tensor, tf.Tensor))):
-				A dictionary from evaluation metric names to evaluation metric functions. Each
-				evaluation metric function accepts the correct outputs for a batch and the
-				predicted outputs for a batch, both as `tf.Tensor`s with shape `[n_batches, output_dim]`.
-				See examples in `tf.metrics` for information on return values.
-			optimizer_fn (func() -> tf.train.Optimizer): The optimizer function. It takes no
-				arguments and returns a `tf.train.Optimizer`, which will be used to minimize the loss.
-			directory (str): The path to the directory where this model's checkpoints should be saved.
-			name (str): The name to use for any `tf.Tensor`s created.
-
+			save_dir (str): See model.BaseModel.
+			chkpt_save_interval (int): See model.BaseModel.
+			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): See
+				model.BaseModel.
+			optimizer_factory (func(tf.Tensor) -> tf.train.Optimizer): See
+				model.BaseModel.
+			layers (list of neural_net.BaseLayer): The layers of the neural net.
 		"""
-		self._loss_fn = loss_fn
-		self._eval_metric_fns = eval_metric_fns
-		self._optimizer_fn = optimizer_fn
-		self._name = name
-		super().__init__(self._model_fn, model_dir=directory, config=Model.CONFIG, params=None)
-
-	def _model_fn(self, features, labels, mode, params, config):
-		predictions = self._output(features)
-		if mode == tf.estimator.ModeKeys.PREDICT:
-		    return tf.estimator.EstimatorSpec(
-		        mode=mode,
-		        predictions={"predictions": predictions}
-		    )
-
-		loss = self._loss_fn(labels, predictions)
-		eval_metrics = {name: metric_fn(labels, predictions) for name, metric_fn in self._eval_metric_fns.items()}
-		optimizer = self._optimizer_fn() # TODO: Pass params to the *fns.
-		train_op = optimizer.minimize(
-		    loss=loss,
-		    global_step=tf.train.get_global_step()
-		)
-		return tf.estimator.EstimatorSpec(
-		    mode=mode,
-		    loss=loss,
-		    train_op=train_op,
-		    eval_metric_ops=eval_metrics
-		)
-
-	def _output(self, features):
-		raise NotImplementedError
-
-	def train_(self, data_fn):
-		"""
-		Train this model.
-
-		Args:
-			data_fn (func() -> tuple(tf.Tensor, tf.Tensor)): Function to supply training data.
-				On each call, returns a different tuple of input data and correct output data.
-				If it raises `StopIteration`, then the round of training stops.
-		"""
-		self.train(data_fn, hooks=None, steps=None, max_steps=None)
-
-	def train_duration_(self, data_fn, duration):
-		"""
-		Train this model.
-
-		Args:
-			data_fn (func() -> tuple(tf.Tensor, tf.Tensor)): Function to supply training data.
-				On each call, returns a different tuple of input data and correct output data.
-				If it raises `StopIteration`, then the round of training stops.
-			duration (int): The number of seconds to train for.
-		"""
-		start = time.time()
-		while time.time() - start < duration:
-			self.train(data_fn, hooks=None, steps=Model.STEPS_AT_A_TIME, max_steps=None)
-
-	def evaluate_(self, data_fn):
-		"""
-		Evaluate this model.
-
-		Args:
-			data_fn (func() -> tuple(tf.Tensor, tf.Tensor)): Function to supply test data.
-				On each call, returns a different tuple of input data and correct output data.
-				If it raises `StopIteration`, then evaluation stops.
-
-		Returns:
-			Evaluation metrics for the given test data. A `(dict(str: tf.Tensor))`, where each
-				entry corresponds to an evaluation metric function passed in upon construction.
-		"""
-		return self.evaluate(data_fn, hooks=None, checkpoint_path=None, name=self._name)
-
-	def predict_(self, data_fn):
-		"""
-		Predict using this model.
-
-		Args:
-			data_fn (func() -> tf.Tensor): Function to supply prediction input data. On each call,
-				returns different input data. If it raises `StopIteration`, then prediction stops.
-
-		Returns:
-			Predictions for the given prediction input data.
-		"""
-		return self.predict(data_fn, predict_keys=None, hooks=None, checkpoint_path=None)
-
-class NeuralNet(Model):
-	"""A neural network."""
-
-	def __init__(self, layers, loss_fn, eval_metric_fns, optimizer_fn, directory, name):
-		"""
-		Create a neural network.
-
-		Args:
-			layers (list of `Layer`): The layers for the network.
-			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): The loss function. It accepts
-				the correct outputs for a batch and the predicted outputs for a batch, both as
-				`tf.Tensor`s with shape `[n_batches, output_dim]`.
-			eval_metric_fns (dict(str: func(tf.Tensor, tf.Tensor)) -> tf.Tensor): A dictionary from
-				evaluation metric names to evaluation metric functions. Each evaluation metric function
-				accepts the correct outputs for a batch and the predicted outputs for a batch, both as
-				`tf.Tensor`s with shape `[n_batches, output_dim]`.
-			optimizer_fn (func() -> tf.train.Optimizer): The optimizer function. It takes no
-				arguments and returns a `tf.train.Optimizer`, which will be used to minimize the loss.
-			directory (str): The path to the directory where this model's checkpoints should be saved.
-			name (str): The name to use for any `tf.Tensor`s created.
-		"""
-		super().__init__(loss_fn, eval_metric_fns, optimizer_fn, directory, name)
+		super().__init__(save_dir, chkpt_save_interval, loss_fn,
+			optimizer_factory)
 		self._layers = layers
 
-	def _output(self, features):
-		previous = features
-		for layer in self._layers:
-			previous = layer.output(previous)
-		return previous
+	def _tensor_predict(self, inputs):
+		with tf.Session().as_default():
+			result = inputs
+			# result = tf.Print(result, [result, tf.reduce_mean(result)], summarize=20)
+			for layer in self._layers:
+				result = layer.output(result)
+				# result = tf.Print(result, [result, tf.reduce_mean(result)], summarize=20)
+			return result
 
-class Layer(object):
+class BaseLayer(object):
 	TYPES = set(["CONV", "POOL", "TRAN", "LRN", "FLAT", "FULL", "DROP"])
 	DATA_FORMAT = "channels_last"
 
@@ -162,7 +46,7 @@ class Layer(object):
 		Args:
 			layer_type (str): One of `"CONV"`, `"POOL"`, `"TRAN"`, `"FLAT"`, or `"FULL"`.
 		"""
-		assert layer_type in Layer.TYPES
+		assert layer_type in BaseLayer.TYPES
 		self._type = layer_type
 
 	def type(self):
@@ -187,7 +71,7 @@ class Layer(object):
 		"""
 		#assert type(previous) == tf.Tensor
 
-class ConvolutionalLayer(Layer):
+class ConvolutionalLayer(BaseLayer):
 	"""
 	A convolutional layer of a neural network.
 	"""
@@ -199,13 +83,12 @@ class ConvolutionalLayer(Layer):
 	USE_BIAS = True
 	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
 	BIAS_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
-	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	ACTIVITY_REGULARIZER = None
 	TRAINABLE = True
 	REUSE = False
 
-	def __init__(self, n_filters, window_side, window_stride, padding_method, name):
+	def __init__(self, n_filters, window_side, window_stride, padding_method,
+		weight_decay, name):
 		"""
 		Create a convolutional layer.
 
@@ -214,6 +97,7 @@ class ConvolutionalLayer(Layer):
 			window_side_length (int): The side length of the sliding window for the filters, in pixels.
 			stride_length (int): The stride length of the sliding window for the filters, in pixels.
 			padding_method (str): The name of the padding method to use.
+			weight_decay (float): The rate of decay for the weights.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(ConvolutionalLayer.TYPE)
@@ -228,6 +112,7 @@ class ConvolutionalLayer(Layer):
 		self._window_side = window_side
 		self._window_stride = window_stride
 		self._padding_method = padding_method
+		self._weight_decay = weight_decay
 		self._name = name
 
 	def output(self, previous):
@@ -247,21 +132,21 @@ class ConvolutionalLayer(Layer):
 			self._window_side,
 			strides=self._window_stride,
 			padding=self._padding_method,
-			data_format=Layer.DATA_FORMAT,
+			data_format=BaseLayer.DATA_FORMAT,
 			dilation_rate=ConvolutionalLayer.DILATION_RATE,
 			activation=ConvolutionalLayer.ACTIVATION,
 			use_bias=ConvolutionalLayer.USE_BIAS,
 			kernel_initializer=ConvolutionalLayer.KERNEL_INITIALIZER,
 			bias_initializer=ConvolutionalLayer.BIAS_INITIALIZER,
-			kernel_regularizer=ConvolutionalLayer.KERNEL_REGULARIZER,
-			bias_regularizer=ConvolutionalLayer.BIAS_REGULARIZER,
+			kernel_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
+			bias_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
 			activity_regularizer=ConvolutionalLayer.ACTIVITY_REGULARIZER,
 			trainable=ConvolutionalLayer.TRAINABLE,
 			name=self._name,
 			reuse=ConvolutionalLayer.REUSE
 		)
 
-class LocalResponseNormalizationLayer(Layer):
+class LocalResponseNormalizationLayer(BaseLayer):
 	"""
 	A local response normalization layer of a neural network.
 	"""
@@ -311,7 +196,7 @@ class LocalResponseNormalizationLayer(Layer):
 			name = self._name
 		)
 
-class PoolingLayer(Layer):
+class PoolingLayer(BaseLayer):
 	"""
 	A pooling layer of a neural network.
 	"""
@@ -366,11 +251,11 @@ class PoolingLayer(Layer):
 			self._window_side,
 			self._window_stride,
 			padding=self._padding_method,
-			data_format=Layer.DATA_FORMAT,
+			data_format=BaseLayer.DATA_FORMAT,
 			name=self._name
 		)
 
-class TransferLayer(Layer):
+class TransferLayer(BaseLayer):
 	"""
 	A transfer layer of a neural network.
 	"""
@@ -404,7 +289,7 @@ class TransferLayer(Layer):
 		super().output(previous)
 		return self._transfer_fn(previous, self._name)
 
-class FlatLayer(Layer):
+class FlatLayer(BaseLayer):
 	"""
 	A flattening layer of a neural network.
 	"""
@@ -434,7 +319,7 @@ class FlatLayer(Layer):
 		super().output(previous)
 		return tf.contrib.layers.flatten(previous, outputs_collections=None, scope=None)
 
-class FullLayer(Layer):
+class FullLayer(BaseLayer):
 	"""
 	A fully-connected layer of a neural network.
 	"""
@@ -444,23 +329,23 @@ class FullLayer(Layer):
 	USE_BIAS = True
 	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
 	BIAS_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	KERNEL_REGULARIZER = tf.contrib.keras.regularizers.l2()
-	BIAS_REGULARIZER = tf.contrib.keras.regularizers.l2()
 	ACTIVITY_REGULARIZER = None
 	TRAINABLE = True
 	REUSE = False
 
-	def __init__(self, size, name):
+	def __init__(self, size, weight_decay, name):
 		"""
 		Create a fullly-connected layer.
 
 		Args:
 			size (int): The number of neurons for this layer. The output will have shape `[n_batches, size]`.
+			weight_decay (float): The rate of decay for the weights.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(FullLayer.TYPE)
 		assert size >= 1
 		self._size = size
+		self._weight_decay = weight_decay
 		self._name = name
 
 	def output(self, previous):
@@ -481,15 +366,15 @@ class FullLayer(Layer):
 			use_bias=FullLayer.USE_BIAS,
 			kernel_initializer=FullLayer.KERNEL_INITIALIZER,
 			bias_initializer=FullLayer.BIAS_INITIALIZER,
-			kernel_regularizer=FullLayer.KERNEL_REGULARIZER,
-			bias_regularizer=FullLayer.BIAS_REGULARIZER,
+			kernel_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
+			bias_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
 			activity_regularizer=FullLayer.ACTIVITY_REGULARIZER,
 			trainable=FullLayer.TRAINABLE,
 			name=self._name,
 			reuse=FullLayer.REUSE
 		)
 
-class DropoutLayer(Layer):
+class DropoutLayer(BaseLayer):
 	"""
 	A dropout layer of a neural network.
 	"""
