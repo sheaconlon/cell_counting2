@@ -233,11 +233,12 @@ class Dataset(object):
 				output. It returns a sequence of one or more new examples to
 				replace the passed in example with.
 		"""
-		def map_helper(inputs, outputs):
+		def map_helper(batch):
+			inputs, outputs = batch
 			new_inputs = []
 			new_outputs = []
 			for i in range(inputs.shape[0]):
-				example = (inputs[i], outputs[i])
+				example = (inputs[i, ...], outputs[i, ...])
 				new_examples = fn(example)
 				for new_example in new_examples:
 					new_inputs.append(new_example[0])
@@ -261,6 +262,7 @@ class Dataset(object):
 			inputs = np.load(os.path.join(segment_dir, "inputs.npy"))
 			outputs = np.load(os.path.join(segment_dir, "outputs.npy"))
 			new_inputs, new_outputs = fn((inputs, outputs))
+			self._segment_size = new_inputs.shape[0]
 			np.save(os.path.join(segment_dir, "inputs.npy"), new_inputs)
 			np.save(os.path.join(segment_dir, "outputs.npy"), new_outputs)
 
