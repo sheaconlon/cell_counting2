@@ -6,6 +6,10 @@ import os
 from scipy import misc
 import random
 import json
+import shutil
+
+import tensorflow as tf
+from sklearn.feature_extraction import image
 
 class Dataset(object):
 	"""A dataset consisting of some examples of input/output pairs. Minimizes
@@ -15,10 +19,17 @@ class Dataset(object):
 		then these examples will be ignored.
 	"""
 
-	SEGMENT_SIZE = 100
+	SEGMENT_POOL_MULTIPLIER = 5
 
-	def __init__(self):
-		"""Create a dataset."""
+	def __init__(self, segment_size):
+		"""Create a dataset.
+
+		Args:
+			segment_size (int): The number of examples to store per file. Note
+				that only dataset sizes which are a multiple of segment_size
+				will be allowed and any excess examples will be discarded.
+		"""
+		self._segment_size = segment_size
 		self._segments = 0
 		self._segment_dir = tempfile.TemporaryDirectory()
 
@@ -66,7 +77,54 @@ class Dataset(object):
 			shape)
 		self._load_examples(example_iterator)
 
+	class ImagesMaskPairIterator(object):
+		def __init__(self, image_dir, mask_dir, dims):
+			self._image_dir = image_dir
+			self._mask_dir = mask_dir
+			self._filenames = iter(os.listdir(self._mask_dir))
+			self._dims = dims
+
+		def __iter__(self):
+			return self
+
+		def __next__(self):
+			filename = next(self._filenames)
+
+			image_path = os.path.join(self._image_dir, filename)
+			mask_path = os.path.join(self._mask_dir, filename)
+
+			image = ndimage.imread(image_path)
+			mask = ndimage.imread(mask_path)
+
+			image = misc.imresize(image, self._dims, interp="bilinear")
+			mask = misc.imresize(mask, self._dims, interp="bilinear")
+
+			mask = misc.imrotate(mask, 90)
+
+			return image, mask
+
+	def load_image_mask_pairs(self, image_dir, mask_dir, dims):
+		"""Makes the inputs be the pixels of the images in one directory and
+			makes the outputs be the pixels of correspondingly-named mask images
+			in another directory.
+
+		Finds pairs of images and mask images by listing the files in the mask
+			directory. Therefore, while all mask images need to have an image,
+			not all images need to have a mask image.
+
+		Args:
+			image_dir (str): The path to the directory containing the images.
+			mask_dir (str): The path to the directory containing the mask
+				images.
+			dims (tuple of int): The dimensions to resize the images and mask
+				images to. Should be a 2-element tuple of height and width.
+		"""
+		examples = self.ImagesMaskPairIterator(image_dir, mask_dir, dims)
+		self._load_examples(examples)
+
 	class MaskedImagesFromMetadataIterator(object):
+		MASK_EXCLUDE_MAX = 50
+
 		def __init__(self, metadata, image_path_getter, mask_path_getter,
 			label_getter, shape):
 			self._metadata_iterator = iter(metadata.values())
@@ -83,23 +141,30 @@ class Dataset(object):
 
 			image_path = self._image_path_getter(example_metadata)
 			image = ndimage.imread(image_path)
-			image = misc.imresize(image, self._shape, interp="bilinear")
+
 			mask_path = self._mask_path_getter(example_metadata)
 			mask = ndimage.imread(mask_path)
-			mask = misc.imresize(mask, self._shape, interp="bilinear")
-			image_and_mask = np.concatenate((image, mask), axis=2)
+
+			mask = np.mean(mask, axis=2)
+			image[mask < self.MASK_EXCLUDE_MAX, :] = 0
+			image = misc.imresize(image, self._shape, interp="bilinear")
+
 			label = self._label_getter(example_metadata)
-			return (image_and_mask, label)
+
+			return (image, label)
 
 	def load_images_masks_labels_from_json(self, metadata_path, image_path_getter,
 		mask_path_getter, label_getter, shape):
 		"""Assumes there is a JSON metadata file which contains, for each
 			example, the path of an image, the path of a mask image, and a
-			label. Makes the inputs be the images concatenated with the mask
-			images along the channel dimension. Makes the outputs be the labels.
+			label. Makes the inputs be the images with pixels in the black area
+			of the mask image set to black. Makes the outputs be the labels.
 
 		Note that this will resize the mask images, which will lead to mask
-			image values that are neither black nor white.
+			image values that are neither black nor white. Pixels whose average
+			value over R, G, and B is less than
+			MaskedImagesFromMetadataIterator.MASK_EXCLUDE_MAX will be
+			considered black.
 
 		Args:
 			metadata_path (str): The path to the JSON metadata file.
@@ -120,6 +185,84 @@ class Dataset(object):
 			image_path_getter, mask_path_getter, label_getter, shape)
 		self._load_examples(example_iterator)
 
+	def size(self):
+		"""Return the size of this dataset.
+
+		Returns:
+			(int) The size of this dataset.
+		"""
+		return self._segments * self._segment_size
+
+	def split(self, p):
+		"""Split this dataset.
+
+		Note: Will assign entire segments to one part of the split or the other.
+			Result may not approximate p well if there aren't many segments.
+			If the number of segments is very small, there is the possibility
+			for errors.
+
+		Args:
+			p (float): The proportion of the dataset to put in the smaller part
+				of the split.
+
+		Returns:
+			(tuple of dataset.Dataset): The two datasets that result from the
+				split. The smaller one is last.
+		"""
+		smaller = Dataset(int(self._segment_size))
+		larger = Dataset(int(self._segment_size))
+		smaller_limit = int(p * self._segments)
+		for i in range(smaller_limit):
+			src = os.path.join(self._segment_dir.name, str(i))
+			dst = os.path.join(smaller._segment_dir.name, str(i))
+			shutil.copytree(src, dst)
+		smaller._segments = smaller_limit
+		for i in range(smaller_limit, self._segments):
+			src = os.path.join(self._segment_dir.name, str(i))
+			dst = os.path.join(larger._segment_dir.name, str(i - smaller_limit))
+			shutil.copytree(src, dst)
+		larger._segments = self._segments - smaller_limit
+		return larger, smaller
+
+	def map(self, fn):
+		"""Map a function onto this dataset.
+
+		Args:
+			fn (func(tuple of np.ndarray) -> sequence of tuple of np.ndarray):
+				A function that takes in an example as a tuple of input and
+				output. It returns a sequence of one or more new examples to
+				replace the passed in example with.
+		"""
+		def map_helper(inputs, outputs):
+			new_inputs = []
+			new_outputs = []
+			for i in range(inputs.shape[0]):
+				example = (inputs[i], outputs[i])
+				new_examples = fn(example)
+				for new_example in new_examples:
+					new_inputs.append(new_example[0])
+					new_outputs.append(new_example[1])
+			new_inputs = np.stack(new_inputs, axis=0)
+			new_outputs = np.stack(new_outputs, axis=0)
+			return (new_inputs, new_outputs)
+		self.map_batch(map_helper)
+
+	def map_batch(self, fn):
+		"""Map a function onto this dataset by applying it to batches.
+
+		Args:
+			fn (func(tuple of np.ndarray) -> tuple of np.ndarray):
+				A function that takes in an array of inputs and an array of
+				outputs for a batch of examples. It returns a new array of
+				inputs and a new array of outputs to replace this batch.
+		"""
+		for segment_i in range(self._segments):
+			segment_dir = os.path.join(self._segment_dir.name, str(segment_i))
+			inputs = np.load(os.path.join(segment_dir, "inputs.npy"))
+			outputs = np.load(os.path.join(segment_dir, "outputs.npy"))
+			new_inputs, new_outputs = fn((inputs, outputs))
+			np.save(os.path.join(segment_dir, "inputs.npy"), new_inputs)
+			np.save(os.path.join(segment_dir, "outputs.npy"), new_outputs)
 
 	def get_batch(self, size):
 		"""Get a batch of examples.
@@ -132,7 +275,9 @@ class Dataset(object):
 				array has size rows, where the i-th row corresponds to the i-th
 				example.
 		"""
-		segments_needed = int(size / self.SEGMENT_SIZE) + 1
+		segments_needed = (int(size / self._segment_size) + 1)
+		segments_needed *= self.SEGMENT_POOL_MULTIPLIER
+		segments_needed = min(segments_needed, self._segments)
 		chosen_segments = random.sample(range(self._segments), segments_needed)
 		cache = []
 		for segment in chosen_segments:
@@ -142,24 +287,40 @@ class Dataset(object):
 			outputs = np.load(os.path.join(this_segment_dir, "outputs.npy"))
 			cache.append((inputs, outputs))
 		chosen_examples = random.sample(
-			range(segments_needed * self.SEGMENT_SIZE), size)
+			range(segments_needed * self._segment_size), size)
 		inputs = []
 		outputs = []
 		for example in chosen_examples:
-			segment = int(example / self.SEGMENT_SIZE)
-			row = example % self.SEGMENT_SIZE
+			segment = int(example / self._segment_size)
+			row = example % self._segment_size
 			inputs.append(cache[segment][0][row, ...])
 			outputs.append(cache[segment][1][row, ...])
 		inputs = np.stack(inputs, axis=0)
 		outputs = np.stack(outputs, axis=0)
 		return inputs, outputs
 
+	def get_data_fn(self, batch_size, num_batches):
+		"""Get a data function for this dataset.
+
+		Args:
+			batch_size (int): The number of examples to put in each batch.
+			num_batches (int): The number of batches to produce.
+
+		Returns:
+			(func): A data function giving num_batches batches of batch_size
+				examples each.
+		"""
+		inputs, outputs = self.get_batch(batch_size * num_batches)
+		return tf.estimator.inputs.numpy_input_fn({"inputs":inputs}, outputs,
+			batch_size, num_batches, shuffle=False,
+			queue_capacity=batch_size*num_batches)
+
 	def close(self):
 		"""Close this dataset. This dataset will not be useable afterward.
 
 		This method must be called because it deletes temporary files on disk.
 		"""
-		self._segment_dir.__exit__()
+		self._segment_dir.__exit__(None, None, None)
 		self._segment_dir = None
 
 	def _load_examples(self, example_iterator):
@@ -168,7 +329,7 @@ class Dataset(object):
 			input, output = example
 			inputs.append(input)
 			outputs.append(output)
-			if (i + 1) % self.SEGMENT_SIZE == 0:
+			if (i + 1) % self._segment_size == 0:
 				self._save_segment(inputs, outputs)
 				inputs, outputs = [], []
 
