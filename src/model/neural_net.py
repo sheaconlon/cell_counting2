@@ -96,10 +96,12 @@ class ConvolutionalLayer(BaseLayer):
 			stride_length (int): The stride length of the sliding window for the filters, in pixels.
 			padding_method (str): The name of the padding method to use.
 			weight_decay (float): The rate of decay for the weights.
-			weight_init (tf.contrib.keras.Initializer): An initializer for the
-				weights.
-			bias_init (tf.contrib.keras.Initializer): An initializer for the
-				biases. If omitted or None, then no biases are used.
+			weight_init (like return value of tf.contrib.keras.Initializer): An
+				initializer for the weights.
+			bias_init (like return value of tf.contrib.keras.Initializer): An
+				initializer for the biases. If omitted or None, then no biases
+				are used.
+			weight_reg (tf.)
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(ConvolutionalLayer.TYPE)
@@ -345,10 +347,10 @@ class FullLayer(BaseLayer):
 		Args:
 			size (int): The number of neurons for this layer. The output will have shape `[n_batches, size]`.
 			weight_decay (float): The rate of decay for the weights.
-			weight_init (tf.contrib.keras.Initializer): An initializer for the
-				weights.
-			bias_init (tf.contrib.keras.Initializer): An initializer for the
-				biases.
+			weight_init (like return value of tf.contrib.keras.Initializer): An
+				initializer for the weights.
+			bias_init (like return value of tf.contrib.keras.Initializer): An
+				initializer for the biases.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(FullLayer.TYPE)
