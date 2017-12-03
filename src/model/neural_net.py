@@ -81,14 +81,12 @@ class ConvolutionalLayer(BaseLayer):
 	DILATION_RATE = 1
 	ACTIVATION = None
 	USE_BIAS = True
-	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	BIAS_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
 	ACTIVITY_REGULARIZER = None
 	TRAINABLE = True
 	REUSE = False
 
 	def __init__(self, n_filters, window_side, window_stride, padding_method,
-		weight_decay, name):
+		weight_decay, weight_init, bias_init=None, name):
 		"""
 		Create a convolutional layer.
 
@@ -98,6 +96,10 @@ class ConvolutionalLayer(BaseLayer):
 			stride_length (int): The stride length of the sliding window for the filters, in pixels.
 			padding_method (str): The name of the padding method to use.
 			weight_decay (float): The rate of decay for the weights.
+			weight_init (tf.contrib.keras.Initializer): An initializer for the
+				weights.
+			bias_init (tf.contrib.keras.Initializer): An initializer for the
+				biases. If omitted or None, then no biases are used.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(ConvolutionalLayer.TYPE)
@@ -108,11 +110,16 @@ class ConvolutionalLayer(BaseLayer):
 		assert isinstance(window_stride, int)
 		assert window_stride >= 1
 		assert padding_method in ConvolutionalLayer.PADDING_METHODS
+		assert isinstance(weight_init, tf.contrib.keras.Initializer)
+		assert bias_init is None or
+			isinstance(bias_init, tf.contrib.keras.Initializer)
 		self._n_filters = n_filters
 		self._window_side = window_side
 		self._window_stride = window_stride
 		self._padding_method = padding_method
 		self._weight_decay = weight_decay
+		self._weight_init = weight_init
+		self._bias_init = bias_init
 		self._name = name
 
 	def output(self, previous):
@@ -136,8 +143,8 @@ class ConvolutionalLayer(BaseLayer):
 			dilation_rate=ConvolutionalLayer.DILATION_RATE,
 			activation=ConvolutionalLayer.ACTIVATION,
 			use_bias=ConvolutionalLayer.USE_BIAS,
-			kernel_initializer=ConvolutionalLayer.KERNEL_INITIALIZER,
-			bias_initializer=ConvolutionalLayer.BIAS_INITIALIZER,
+			kernel_initializer=self._weight_init,
+			bias_initializer=self._bias_init,
 			kernel_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
 			bias_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
 			activity_regularizer=ConvolutionalLayer.ACTIVITY_REGULARIZER,
@@ -327,25 +334,31 @@ class FullLayer(BaseLayer):
 	TYPE = "FULL"
 	ACTIVATION = None
 	USE_BIAS = True
-	KERNEL_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
-	BIAS_INITIALIZER = tf.contrib.keras.initializers.glorot_normal()
 	ACTIVITY_REGULARIZER = None
 	TRAINABLE = True
 	REUSE = False
 
-	def __init__(self, size, weight_decay, name):
+	def __init__(self, size, weight_decay, weight_init, bias_init, name):
 		"""
-		Create a fullly-connected layer.
+		Create a fully-connected layer.
 
 		Args:
 			size (int): The number of neurons for this layer. The output will have shape `[n_batches, size]`.
 			weight_decay (float): The rate of decay for the weights.
+			weight_init (tf.contrib.keras.Initializer): An initializer for the
+				weights.
+			bias_init (tf.contrib.keras.Initializer): An initializer for the
+				biases.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(FullLayer.TYPE)
 		assert size >= 1
+		assert isinstance(weight_init, tf.contrib.keras.Initializer)
+		assert isinstance(bias_init, tf.contrib.keras.Initializer)
 		self._size = size
 		self._weight_decay = weight_decay
+		self._weight_init = weight_init
+		self._bias_init = bias_init
 		self._name = name
 
 	def output(self, previous):
@@ -364,8 +377,8 @@ class FullLayer(BaseLayer):
 			self._size,
 			activation=FullLayer.ACTIVATION,
 			use_bias=FullLayer.USE_BIAS,
-			kernel_initializer=FullLayer.KERNEL_INITIALIZER,
-			bias_initializer=FullLayer.BIAS_INITIALIZER,
+			kernel_initializer=self._weight_init,
+			bias_initializer=self._bias_init,
 			kernel_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
 			bias_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
 			activity_regularizer=FullLayer.ACTIVITY_REGULARIZER,
