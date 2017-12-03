@@ -86,7 +86,8 @@ class ConvolutionalLayer(BaseLayer):
 	REUSE = False
 
 	def __init__(self, n_filters, window_side, window_stride, padding_method,
-		weight_decay, weight_init, bias_init=None, name):
+		weight_init, bias_init=None, weight_reg=None,
+		bias_reg=None, name):
 		"""
 		Create a convolutional layer.
 
@@ -95,13 +96,17 @@ class ConvolutionalLayer(BaseLayer):
 			window_side_length (int): The side length of the sliding window for the filters, in pixels.
 			stride_length (int): The stride length of the sliding window for the filters, in pixels.
 			padding_method (str): The name of the padding method to use.
-			weight_decay (float): The rate of decay for the weights.
 			weight_init (like return value of tf.contrib.keras.Initializer): An
 				initializer for the weights.
 			bias_init (like return value of tf.contrib.keras.Initializer): An
 				initializer for the biases. If omitted or None, then no biases
 				are used.
-			weight_reg (tf.)
+			weight_reg (like return value of tf.contrib.layers.l2_regularizer):
+				A regularizer for the weights. If omitted or None, then no
+				regularization is applied to the weights.
+			bias_reg (like return value of tf.contrib.layers.l2_regularizer):
+				A regularizer for the biases. If omitted or None, then no
+				regulatization is applied to the biases.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(ConvolutionalLayer.TYPE)
@@ -119,9 +124,10 @@ class ConvolutionalLayer(BaseLayer):
 		self._window_side = window_side
 		self._window_stride = window_stride
 		self._padding_method = padding_method
-		self._weight_decay = weight_decay
 		self._weight_init = weight_init
 		self._bias_init = bias_init
+		self._weight_reg = weight_reg
+		self._bias_reg = bias_reg
 		self._name = name
 
 	def output(self, previous):
@@ -147,8 +153,8 @@ class ConvolutionalLayer(BaseLayer):
 			use_bias=ConvolutionalLayer.USE_BIAS,
 			kernel_initializer=self._weight_init,
 			bias_initializer=self._bias_init,
-			kernel_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
-			bias_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
+			kernel_regularizer=self._weight_reg,
+			bias_regularizer=self._bias_reg,
 			activity_regularizer=ConvolutionalLayer.ACTIVITY_REGULARIZER,
 			trainable=ConvolutionalLayer.TRAINABLE,
 			name=self._name,
@@ -340,17 +346,23 @@ class FullLayer(BaseLayer):
 	TRAINABLE = True
 	REUSE = False
 
-	def __init__(self, size, weight_decay, weight_init, bias_init, name):
+	def __init__(self, size, weight_init, bias_init, weight_reg,
+		bias_reg, name):
 		"""
 		Create a fully-connected layer.
 
 		Args:
 			size (int): The number of neurons for this layer. The output will have shape `[n_batches, size]`.
-			weight_decay (float): The rate of decay for the weights.
 			weight_init (like return value of tf.contrib.keras.Initializer): An
 				initializer for the weights.
 			bias_init (like return value of tf.contrib.keras.Initializer): An
 				initializer for the biases.
+			weight_reg (like return value of tf.contrib.layers.l2_regularizer):
+				A regularizer for the weights. If omitted or None, then no
+				regularization is applied to the weights.
+			bias_reg (like return value of tf.contrib.layers.l2_regularizer):
+				A regularizer for the biases. If omitted or None, then no
+				regulatization is applied to the biases.
 			name (str): The name to use for any `tf.Tensor`s created.
 		"""
 		super().__init__(FullLayer.TYPE)
@@ -358,9 +370,10 @@ class FullLayer(BaseLayer):
 		assert isinstance(weight_init, tf.contrib.keras.Initializer)
 		assert isinstance(bias_init, tf.contrib.keras.Initializer)
 		self._size = size
-		self._weight_decay = weight_decay
 		self._weight_init = weight_init
 		self._bias_init = bias_init
+		self._weight_reg = weight_reg
+		self._bias_reg = bias_reg
 		self._name = name
 
 	def output(self, previous):
@@ -381,8 +394,8 @@ class FullLayer(BaseLayer):
 			use_bias=FullLayer.USE_BIAS,
 			kernel_initializer=self._weight_init,
 			bias_initializer=self._bias_init,
-			kernel_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
-			bias_regularizer=tf.contrib.keras.regularizers.l2(self._weight_decay),
+			kernel_regularizer=self._weight_reg,
+			bias_regularizer=self._bias_reg,
 			activity_regularizer=FullLayer.ACTIVITY_REGULARIZER,
 			trainable=FullLayer.TRAINABLE,
 			name=self._name,
