@@ -87,7 +87,7 @@ class ConvolutionalLayer(BaseLayer):
 
 	def __init__(self, n_filters, window_side, window_stride, padding_method,
 		weight_init, bias_init=None, weight_reg=None,
-		bias_reg=None, name):
+		bias_reg=None, name=None):
 		"""
 		Create a convolutional layer.
 
@@ -96,11 +96,12 @@ class ConvolutionalLayer(BaseLayer):
 			window_side_length (int): The side length of the sliding window for the filters, in pixels.
 			stride_length (int): The stride length of the sliding window for the filters, in pixels.
 			padding_method (str): The name of the padding method to use.
-			weight_init (like return value of tf.contrib.keras.Initializer): An
-				initializer for the weights.
-			bias_init (like return value of tf.contrib.keras.Initializer): An
-				initializer for the biases. If omitted or None, then no biases
-				are used.
+			weight_init (like return value of
+				tf.contrib.keras.initializers.Initializer): An initializer for
+				the weights.
+			bias_init (like return value of
+				tf.contrib.keras.initializers.Initializer): An initializer for
+				the biases. If omitted or None, then no biases are used.
 			weight_reg (like return value of tf.contrib.layers.l2_regularizer):
 				A regularizer for the weights. If omitted or None, then no
 				regularization is applied to the weights.
@@ -117,9 +118,10 @@ class ConvolutionalLayer(BaseLayer):
 		assert isinstance(window_stride, int)
 		assert window_stride >= 1
 		assert padding_method in ConvolutionalLayer.PADDING_METHODS
-		assert isinstance(weight_init, tf.contrib.keras.Initializer)
-		assert bias_init is None or
-			isinstance(bias_init, tf.contrib.keras.Initializer)
+		assert isinstance(weight_init,
+			tf.contrib.keras.initializers.Initializer)
+		assert bias_init is None or \
+			isinstance(bias_init, tf.contrib.keras.initializers.Initializer)
 		self._n_filters = n_filters
 		self._window_side = window_side
 		self._window_stride = window_stride
@@ -353,10 +355,12 @@ class FullLayer(BaseLayer):
 
 		Args:
 			size (int): The number of neurons for this layer. The output will have shape `[n_batches, size]`.
-			weight_init (like return value of tf.contrib.keras.Initializer): An
-				initializer for the weights.
-			bias_init (like return value of tf.contrib.keras.Initializer): An
-				initializer for the biases.
+			weight_init (like return value of
+				tf.contrib.keras.initializers.Initializer): An initializer for
+				the weights.
+			bias_init (like return value of
+				tf.contrib.keras.initializers.Initializer): An initializer for
+				the biases.
 			weight_reg (like return value of tf.contrib.layers.l2_regularizer):
 				A regularizer for the weights. If omitted or None, then no
 				regularization is applied to the weights.
@@ -367,8 +371,9 @@ class FullLayer(BaseLayer):
 		"""
 		super().__init__(FullLayer.TYPE)
 		assert size >= 1
-		assert isinstance(weight_init, tf.contrib.keras.Initializer)
-		assert isinstance(bias_init, tf.contrib.keras.Initializer)
+		assert isinstance(weight_init,
+			tf.contrib.keras.initializers.Initializer)
+		assert isinstance(bias_init, tf.contrib.keras.initializers.Initializer)
 		self._size = size
 		self._weight_init = weight_init
 		self._bias_init = bias_init
