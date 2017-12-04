@@ -78,6 +78,58 @@ class ConfusionMatrixMetric(BaseMetric):
 		self._record(model.get_global_step(), conf_mtx)
 		return conf_mtx
 
+class NonexclusiveConfusionMatrixMetric(BaseMetric):
+	"""A nonexclusive confusion matrix metric.
+
+	A nonexclusive confusion matrix views a model as producing a prediction
+		which is a probability distribution over classes. Instead of tallying
+		one prediction for the class of maximal score/probability as in normal
+		confusion matrices, it tallies a fractional prediction for each class.
+		It then normalizes the entire confusion matrix so that its entries sum
+		to the number of examples, as in normal confusion matrices. Note that
+		to the calculate the probability distribution over classes, the scores
+		are passed through softmax.
+	"""
+
+	def __init__(self, batch, num_classes):
+		"""Create a nonexclusive confusion matrix metric.
+
+		Args:
+			batch (tuple of np.ndarray): A batch of input and output data to
+				test models with.
+			num_classes (int): The number of classes.
+		"""
+		super().__init__()
+		self._batch = batch
+		self._num_classes = num_classes
+
+	def evaluate(self, model):
+		"""Calculate the nonexclusive confusion matrix of a model. Also records
+			the result.
+
+		Args:
+			model (model.BaseModel): The model. Must be a classifier, whose
+				output is an array of per-class scores.
+
+		Returns:
+			An array of size (num_classes, num_classes) where the value at
+				(i, j) is like the number of times that the model predicted
+				class i when the true class was class j.
+		"""
+		inputs, outputs = self._batch
+		scores = model.predict(inputs)
+		with tf.Session().as_default():
+			pred_dist = tf.nn.softmax(tf.constant(scores), dim=1).eval()
+		mtx = np.zeros((self._num_classes, self._num_classes))
+		for i in range(outputs.shape[0]):
+			true_class = np.argmax(outputs[i, :])
+			mtx[:, true_class] += pred_dist[i, :]
+		mtx /= np.sum(mtx)
+		mtx *= inputs.shape[0]
+		mtx = np.around(mtx).astype(int)
+		self._record(model.get_global_step(), mtx)
+		return mtx
+
 class LossMetric(BaseMetric):
 	"""A loss metric."""
 
