@@ -54,7 +54,9 @@ class ConvNet1(neural_net.NeuralNet):
 		    neural_net.FullLayer(7, weight_init, bias_init, weight_reg, bias_reg, "6-FULL")
 		]
 		def loss_fn(labels, predictions):
-			return tf.losses.softmax_cross_entropy(labels, predictions)
+			predictions = tf.add(predictions, tf.constant(1e-4))
+			loss = tf.losses.softmax_cross_entropy(labels, predictions)
+			return loss
 		def optimizer_factory(global_step):
 			learning_rate = 0.01
 			learning_rate = tf.train.exponential_decay(learning_rate,
