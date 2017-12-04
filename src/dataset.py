@@ -313,9 +313,11 @@ class Dataset(object):
 				examples each.
 		"""
 		inputs, outputs = self.get_batch(batch_size * num_batches)
+		assert not np.any(np.isnan(inputs))
+		assert not np.any(np.isnan(outputs))
 		return tf.estimator.inputs.numpy_input_fn({"inputs":inputs}, outputs,
 			batch_size, num_batches, shuffle=False,
-			queue_capacity=batch_size*num_batches)
+			queue_capacity=num_batches)
 
 	def close(self):
 		"""Close this dataset. This dataset will not be useable afterward.
