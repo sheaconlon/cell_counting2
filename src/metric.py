@@ -74,6 +74,7 @@ class ConfusionMatrixMetric(BaseMetric):
 				tf.constant(pred_outputs),
 				num_classes=self._num_classes
 			).eval()
+		conf_mtx = np.transpose(conf_mtx)
 		self._record(model.get_global_step(), conf_mtx)
 		return conf_mtx
 

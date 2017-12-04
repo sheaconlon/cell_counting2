@@ -40,14 +40,14 @@ def plot_confusion_matrix(mtx, title, height, width):
     num_classes = mtx.shape[0]
     plt.close()
     plt.figure(figsize=(width, height), dpi=PLT_DPI)
-    plt.imshow(np.transpose(mtx), interpolation='nearest', cmap=plt.cm.Blues)
+    plt.imshow(mtx, interpolation='nearest', cmap=plt.cm.Blues)
     plt.title(title)
     tick_marks = np.arange(num_classes)
     plt.xticks(tick_marks, tick_marks)
     plt.yticks(tick_marks, tick_marks)
     thresh = mtx.max() / 2
     for i, j in itertools.product(range(num_classes), range(num_classes)):
-        plt.text(j, i, format(mtx[j, i], 'd'),
+        plt.text(i, j, format(mtx[j, i], 'd'),
                  horizontalalignment="center",
                  color="white" if mtx[i, j] > thresh else "black")
     plt.tight_layout()
