@@ -24,34 +24,40 @@ class ConvNet1(neural_net.NeuralNet):
 		    neural_net.ConvolutionalLayer(20, 5, 1, "VALID",
 		    	weight_init, bias_init, weight_reg, bias_reg, "1-CONV"),
 		    neural_net.TransferLayer(relu, "1-TRANSFER"),
-		    neural_net.LocalResponseNormalizationLayer(5, 1, 1, 0.5, "1-NORM"),
+		    neural_net.LocalResponseNormalizationLayer(1, 1, 1e-5, 0.5,
+		    	"1-NORM"),
 		    neural_net.PoolingLayer("MAX", 2, 2, "VALID", "1-POOL"),
 
 		    neural_net.ConvolutionalLayer(50, 5, 1, "VALID",
 		    	weight_init, bias_init, weight_reg, bias_reg, "2-CONV"),
 		    neural_net.TransferLayer(relu, "2-TRANSFER"),
-		    neural_net.LocalResponseNormalizationLayer(5, 1, 1, 0.5, "2-NORM"),
+		    neural_net.LocalResponseNormalizationLayer(2, 1, 1e-5, 0.5,
+		    	"2-NORM"),
 		    neural_net.PoolingLayer("MAX", 2, 2, "VALID", "2-POOL"),
 
 		    neural_net.ConvolutionalLayer(100, 4, 1, "VALID",
 		    	weight_init, bias_init, weight_reg, bias_reg, "3-CONV"),
 		    neural_net.TransferLayer(relu, "3-TRANSFER"),
-		    neural_net.LocalResponseNormalizationLayer(5, 1, 1, 0.5, "3-NORM"),
+		    neural_net.LocalResponseNormalizationLayer(5, 1, 1e-5, 0.5,
+		    	"3-NORM"),
 		    neural_net.PoolingLayer("MAX", 2, 2, "VALID", "3-POOL"),
 
 		    neural_net.ConvolutionalLayer(200, 4, 1, "VALID",
 		    	weight_init, bias_init, weight_reg, bias_reg, "4-CONV"),
 		    neural_net.TransferLayer(relu, "4-TRANSFER"),
-		    neural_net.LocalResponseNormalizationLayer(5, 1, 1, 0.5, "4-NORM"),
+		    neural_net.LocalResponseNormalizationLayer(7, 1, 1e-5, 0.5,
+		    	"4-NORM"),
 		    neural_net.PoolingLayer("MAX", 2, 2, "VALID", "4-POOL"),
 
 		    neural_net.FlatLayer("5-FLAT"),
-		    neural_net.DropoutLayer(0.75, None, time.time(), "5-DROP"),
-		    neural_net.FullLayer(500, weight_init, bias_init, weight_reg, bias_reg, "5-FULL"),
+		    neural_net.DropoutLayer(1 - 0.75, None, time.time(), "5-DROP"),
+		    neural_net.FullLayer(500, weight_init, bias_init, weight_reg,
+		    	bias_reg, "5-FULL"),
 		    neural_net.TransferLayer(relu, "5-TRANSFER"),
 
-		    neural_net.DropoutLayer(0.75, None, time.time(), "6-DROP"),
-		    neural_net.FullLayer(7, weight_init, bias_init, weight_reg, bias_reg, "6-FULL")
+		    neural_net.DropoutLayer(1 - 0.75, None, time.time(), "6-DROP"),
+		    neural_net.FullLayer(7, weight_init, bias_init, weight_reg,
+		    	bias_reg, "6-FULL")
 		]
 		def loss_fn(labels, predictions):
 			predictions = tf.add(predictions, tf.constant(1e-4))
