@@ -14,6 +14,7 @@ def show_image_grid(images, rows, cols, height, width, title, subtitles=None):
         images = images / amax
     plt.close()
     fig, ax_arr = plt.subplots(rows, cols)
+    ax_arr = ax_arr.flatten()
     fig.set_dpi(PLT_DPI)
     fig.set_size_inches(width, height)
     plt.suptitle(title, fontsize=22)

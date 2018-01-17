@@ -379,8 +379,8 @@ class FullLayer(BaseLayer):
 	TRAINABLE = True
 	REUSE = False
 
-	def __init__(self, size, weight_init, bias_init, weight_reg,
-		bias_reg, name):
+	def __init__(self, size, weight_init, bias_init, weight_reg=None,
+		bias_reg=None, name=None):
 		"""
 		Create a fully-connected layer.
 
