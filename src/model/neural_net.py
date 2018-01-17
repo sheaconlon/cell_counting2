@@ -213,6 +213,37 @@ class LocalResponseNormalizationLayer(BaseLayer):
 			name = self._name
 		)
 
+class BatchNormalizationLayer(BaseLayer):
+	"""
+	A batch normalization layer of a neural network.
+	"""
+
+	def __init__(self, axis, name):
+		"""
+		Create a batch normalization layer.
+
+		Args:
+			axis (int): The axis that should be normalized.
+			name (str): The name to use for any tensors created.
+		"""
+		self._axis = axis
+		self._name = name
+
+	def output(self, previous):
+		"""
+		Get the output of this layer.
+
+		Args:
+			previous (tf.Tensor): The output of the layer before this one. Must
+				have shape `[n_batches, height, width, channels]`.
+
+		Returns:
+			A `tf.Tensor` representing the output of this layer.
+		"""
+		super().output(previous)
+		return tf.layers.batch_normalization(previous, axis=self._axis,
+			name=self._name)
+
 class PoolingLayer(BaseLayer):
 	"""
 	A pooling layer of a neural network.
