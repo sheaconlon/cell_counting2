@@ -99,8 +99,6 @@ class Dataset(object):
 			image = misc.imresize(image, self._dims, interp="bilinear")
 			mask = misc.imresize(mask, self._dims, interp="bilinear")
 
-			mask = misc.imrotate(mask, 90)
-
 			return image, mask
 
 	def load_image_mask_pairs(self, image_dir, mask_dir, dims):
