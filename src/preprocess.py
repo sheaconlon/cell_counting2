@@ -1,4 +1,8 @@
+import math
+
 import tensorflow as tf
+
+import numpy as np
 from sklearn.feature_extraction import image as img
 
 def smdm_normalize(images, window, padding):
@@ -81,23 +85,36 @@ def one_hot_encode(labels, num_classes):
 	with tf.Session() as sess:
 		return sess.run(tf.one_hot(labels, num_classes))
 
-def extract_patches(image, size, max_patches=None, seed=None):
+def extract_patches(image, size, max_patches=None):
 	"""
-	Extracts square patches from an image.
+	Extracts square patches of an image.
 
 	Args:
-		image (np.ndarray): An image. Should have shape (height, width) or
-			(height, width, num_channels).
-		size (int): The side length of a single patch.
-		max_patches (int): The maximum number of patches to extract.
-		seed (int): The seed for random selection of patches when max_patches is
-			used.
+		image (np.ndarray): The image. Must have shape (height, width, 3).
+		size (int): The side length (in pixels) of the patches.
+		max_patches (int): The maximum number of patches to extract. If omitted,
+			all possible patches are extracted. The actual number of patches
+			extracted may be somewhat less than this but will not exceed this.
 
 	Returns:
-		(np.ndarray): Patches of the the image. Has shape
-			(num_patches, size, size) or
-			(num_patches, size, size, num_channels), depending on the shape
-			of the image.
+		(np.ndarray): Patches of the image. Has shape (num_patches, size, size,
+			3).
 	"""
-	return img.extract_patches_2d(image, (size, size), max_patches=max_patches,
-		random_state=seed)
+	if max_patches is not None:
+		possible_patches = (image.shape[0] - size + 1) * \
+			(image.shape[1] - size + 1)
+		frac_max_patches = max_patches / possible_patches
+		stride = math.ceil(math.sqrt(1 / frac_max_patches))
+	else:
+		stride = 1
+	patches_by_channel = []
+	for channel_index in range(3):
+		with tf.Session() as sess:
+			channel = image[:, :, (channel_index,)]
+			images = tf.constant(channel)
+			images = tf.expand_dims(images, axis=0)
+			patches = tf.extract_image_patches(images, (1, size, size, 1),
+				(1, stride, stride, 1), (1, 1, 1, 1), "VALID")
+			patches = tf.reshape(patches, (-1, size, size, 1))
+			patches_by_channel.append(sess.run(patches))
+	return np.concatenate(patches_by_channel, axis=3)
