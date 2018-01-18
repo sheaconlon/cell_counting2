@@ -264,6 +264,44 @@ class Dataset(object):
 			np.save(os.path.join(segment_dir, "inputs.npy"), new_inputs)
 			np.save(os.path.join(segment_dir, "outputs.npy"), new_outputs)
 
+	def set_segment_size(self, n):
+		"""Set the segment size of this dataset, the number of examples that
+			this dataset stores in each of its files.
+
+		Any extra examples beyond a multiple of the new segment size will be
+			discarded.
+
+		Args:
+			n (int): The new segment size.
+		"""
+		new_dataset = Dataset(n)
+		input_sets = []
+		output_sets = []
+		num_examples = 0
+		curr_segment = 0
+		while curr_segment < self._segments or num_examples >= n:
+			# while true, add a segment to the new dataset
+			if num_examples < n:
+				# if not enough examples are accumulated, accumulate more
+				inputs, outputs = self._load_segment(curr_segment)
+				input_sets.append(inputs)
+				output_sets.append(outputs)
+				num_examples += outputs.shape[0]
+				curr_segment += 1
+			inputs = np.concatenate(input_sets, axis=0)
+			outputs = np.concatenate(output_sets, axis=0)
+			if outputs.shape[0] > n:
+				# add only the first n if extra have been accumulated
+				inputs, input_sets = inputs[:n, ...], [inputs[n:, ...]]
+				outputs, output_sets = outputs[:n, ...], [outputs[n:, ...]]
+				num_examples = output_sets[0].shape[0]
+			new_dataset._add_segment(inputs, outputs)
+		# make this dataset be like the new dataset
+		self.close()
+		self._segment_size = new_dataset._segment_size
+		self._segment_dir = new_dataset._segment_dir
+		self._segments = new_dataset._segments
+
 	def get_batch(self, size):
 		"""Get a batch of examples.
 
@@ -332,18 +370,24 @@ class Dataset(object):
 			inputs.append(input)
 			outputs.append(output)
 			if (i + 1) % self._segment_size == 0:
-				self._save_segment(inputs, outputs)
+				inputs = np.stack(inputs, axis=0)
+				outputs = np.stack(outputs, axis=0)
+				self._add_segment(inputs, outputs)
 				inputs, outputs = [], []
 
-	def _save_segment(self, inputs, outputs):
-		inputs = np.stack(inputs, axis=0)
-		outputs = np.stack(outputs, axis=0)
+	def _add_segment(self, inputs, outputs):
 		this_segment_dir = os.path.join(self._segment_dir.name,
 			str(self._segments))
 		os.mkdir(this_segment_dir)
 		np.save(os.path.join(this_segment_dir, "inputs.npy"), inputs)
 		np.save(os.path.join(this_segment_dir, "outputs.npy"), outputs)
 		self._segments += 1
+
+	def _load_segment(self, segment):
+		segment_dir = os.path.join(self._segment_dir.name, str(segment))
+		inputs = np.load(os.path.join(segment_dir, "inputs.npy"))
+		outputs = np.load(os.path.join(segment_dir, "outputs.npy"))
+		return inputs, outputs
 
 	@staticmethod
 	def _load_excel_mapping(path, key_col, value_col):
