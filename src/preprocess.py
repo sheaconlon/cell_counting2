@@ -1,4 +1,4 @@
-import math
+import math, random
 
 import tensorflow as tf
 
@@ -85,36 +85,69 @@ def one_hot_encode(labels, num_classes):
 	with tf.Session() as sess:
 		return sess.run(tf.one_hot(labels, num_classes))
 
-def extract_patches(image, size, max_patches=None):
+def extract_patches(image, class_image, size, num_patches, class_dist=None):
 	"""
-	Extracts square patches of an image.
+	Extract square patches of an image along with their corresponding classes.
+
+	Note that patches will not necessarily be distinct. They will be sampled
+		with replacement from the set of all possible patches.
 
 	Args:
-		image (np.ndarray): The image. Must have shape (height, width, 3).
-		size (int): The side length (in pixels) of the patches.
-		max_patches (int): The maximum number of patches to extract. If omitted,
-			all possible patches are extracted. The actual number of patches
-			extracted may be somewhat less than this but will not exceed this.
+		image (np.ndarray): The image. Must have shape
+			(height, width, channels).
+		class_image (np.ndarray): The class image. Must have shape
+			(height, width). classes[y, x] gives the class of the patch centered
+			at (x, y) in the image.
+		size (int): The desired side length (in pixels) of the patches. Must be
+			odd.
+		num_patches (int): The desired number of patches.
+		class_dist (dict(int, float)): The desired class distribution of the
+			patches. If omitted, or None, a uniform distribution is assumed.
 
 	Returns:
-		(np.ndarray): Patches of the image. Has shape (num_patches, size, size,
-			3).
+		(tuple(np.ndarray, np.ndarray)): Patches of the image (shape
+			(num_patches, size, size, 3)) and their corresponding classes
+			(shape (num_patches)).
 	"""
-	if max_patches is not None:
-		possible_patches = (image.shape[0] - size + 1) * \
-			(image.shape[1] - size + 1)
-		frac_max_patches = max_patches / possible_patches
-		stride = math.ceil(math.sqrt(1 / frac_max_patches))
-	else:
-		stride = 1
-	patches_by_channel = []
-	for channel_index in range(3):
-		with tf.Session() as sess:
-			channel = image[:, :, (channel_index,)]
-			images = tf.constant(channel)
-			images = tf.expand_dims(images, axis=0)
-			patches = tf.extract_image_patches(images, (1, size, size, 1),
-				(1, stride, stride, 1), (1, 1, 1, 1), "VALID")
-			patches = tf.reshape(patches, (-1, size, size, 1))
-			patches_by_channel.append(sess.run(patches))
-	return np.concatenate(patches_by_channel, axis=3)
+	assert len(image.shape) == 3, "image does not have 3 dims"
+	assert len(class_image.shape) == 2, "class image does not have 2 dims"
+	assert image.shape[0] == class_image.shape[0] \
+		and image.shape[1] == class_image.shape[1], \
+		"image and class image do not have matching height and width"
+	assert size < image.shape[0] and size < image.shape[1], \
+		"patch size too large for image"
+	assert size % 2 == 1, "size not odd"
+	assert num_patches > 0, "number of patches is not positive"
+	assert sum(class_dist.values()) == 1 \
+		and all(x > 0 for x in class_dist.values()), \
+		"class distribution is not a proper distribution"
+	patches, classes = [], []
+	class_locations = {}
+	half_size = size // 2
+	for y in range(half_size, class_image.shape[0] - (half_size + 1)):
+		for x in range(half_size, class_image.shape[1] - (half_size + 1)):
+			class_ = class_image[y, x]
+			if class_ not in class_locations:
+				class_locations[class_] = []
+			class_locations[class_].append((x, y))
+	if class_dist is None:
+		num_classes = len(class_locations)
+		class_dist = {class_: 1 / num_classes for class_ in class_locations}
+	for class_, class_frac_patches in class_dist.items():
+		class_num_patches = int(num_patches * class_frac_patches) + 1
+		for pos in random.sample(class_locations[class_], class_num_patches):
+			x, y = pos
+			patch = image[(y-half_size):(y+half_size+2),
+				(x-half_size):(x+half_size+2), :]
+			patches.append(patch)
+			classes.append(class_)
+	order = list(range(num_patches))
+	random.shuffle(order)
+	patches_shuffled, classes_shuffled = [], []
+	for i in order:
+		patches_shuffled.append(patches[i])
+		classes_shuffled.append(classes[i])
+	patches_shuffled = np.stack(patches_shuffled, axis=0)[:num_patches, ...]
+	classes_shuffled = np.stack(classes_shuffled, axis=0)[:num_patches, ...]
+	return patches_shuffled, classes_shuffled
+	
