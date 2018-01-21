@@ -46,10 +46,10 @@ class BaseModel(object):
 			start = time.time()
 			batches = 0
 			while True:
-				data_fn = dataset.get_data_fn(self._get_batch_size(),
+				data_fn = dataset.get_data_fn(self.get_batch_size(),
 					self._TRAIN_STEPS)
 				self._estimator.train(data_fn, steps=self._TRAIN_STEPS)
-				batches += self._TRAIN_STEPS
+				batches += 1
 				self._global_step += self._TRAIN_STEPS
 				time_so_far = time.time() - start
 				time_one_batch = time_so_far / batches
@@ -119,5 +119,5 @@ class BaseModel(object):
 	def _tensor_predict(self, inputs):
 		raise NotImplementedError
 
-	def _get_batch_size(self):
+	def get_batch_size(self):
 		raise NotImplementedError
