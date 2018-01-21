@@ -8,7 +8,7 @@ class BaseMetric(object):
 
 	def __init__(self):
 		"""Create a metric."""
-		self._steps = []
+		self._examples_seen = []
 		self._results = []
 
 	def evaluate(self, model):
@@ -26,15 +26,16 @@ class BaseMetric(object):
 		"""Get the results for this metric from all past evaluations.
 
 		Returns:
-			(tuple of lists): In the first list, the i-th element is the value
-				of the global step during the i-th evaluation. In the second
+			(tuple of lists): In the first list, the i-th element is the number
+				of examples seen at the i-th evaluation. In the second
 				list, the i-th element is the value of this metric during the
 				i-th evaluation.
 		"""
-		return self._steps, self._results
+		return self._examples_seen, self._results
 
-	def _record(self, step, result):
-		self._steps.append(step)
+	def _record(self, model, result):
+		self._examples_seen.append(
+			model.get_global_step() * model.get_batch_size())
 		self._results.append(result)
 
 class ConfusionMatrixMetric(BaseMetric):
@@ -75,7 +76,7 @@ class ConfusionMatrixMetric(BaseMetric):
 				num_classes=self._num_classes
 			).eval()
 		conf_mtx = np.transpose(conf_mtx)
-		self._record(model.get_global_step(), conf_mtx)
+		self._record(model, conf_mtx)
 		return conf_mtx
 
 class NonexclusiveConfusionMatrixMetric(BaseMetric):
@@ -127,7 +128,7 @@ class NonexclusiveConfusionMatrixMetric(BaseMetric):
 		mtx /= np.sum(mtx)
 		mtx *= inputs.shape[0]
 		mtx = np.around(mtx).astype(int)
-		self._record(model.get_global_step(), mtx)
+		self._record(model, mtx)
 		return mtx
 
 class LossMetric(BaseMetric):
@@ -160,7 +161,7 @@ class LossMetric(BaseMetric):
 		inputs, outputs = self._batch
 		pred_outputs = model.predict(inputs)
 		loss = self._loss_fn(pred_outputs, outputs)
-		self._record(model.get_global_step(), loss)
+		self._record(model, loss)
 		return loss
 
 class OffByCountMetric(BaseMetric):
@@ -198,7 +199,7 @@ class OffByCountMetric(BaseMetric):
 		counts = np.zeros(2*self._num_classes + 1)
 		for i in range(diffs.shape[0]):
 			counts[diffs[i] + self._num_classes] += 1
-		self._record(model.get_global_step(), counts)
+		self._record(model, counts)
 		return counts
 
 class PredictionThroughputMetric(BaseMetric):
@@ -232,5 +233,5 @@ class PredictionThroughputMetric(BaseMetric):
 		for _ in range(self._TRIALS):
 			model.predict(inputs)
 		thpt = self._TRIALS / (time.time() - start)
-		self._record(model.get_global_step(), thpt)
+		self._record(model, thpt)
 		return thpt
