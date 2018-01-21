@@ -77,8 +77,7 @@ class ConvNet1(neural_net.NeuralNet):
 		   	full(3, "l10-full")
 		)
 		def loss_fn(actual, predicted):
-			return tf.losses.softmax_cross_entropy(
-				tf.one_hot(tf.cast(actual, tf.int32), 3), predicted)
+			return tf.losses.softmax_cross_entropy(actual, predicted)
 		def optimizer_factory(global_step):
 			learning_rate = tf.train.exponential_decay(0.01, global_step, 1,
 				1 - 1e-6, staircase=True)
@@ -89,5 +88,5 @@ class ConvNet1(neural_net.NeuralNet):
 		super().__init__(save_dir, chkpt_save_interval, loss_fn,
 			optimizer_factory, layers)
 
-	def _get_batch_size(self):
+	def get_batch_size(self):
 		return 256
