@@ -275,27 +275,28 @@ class Dataset(object):
 			n (int): The new segment size.
 		"""
 		new_dataset = Dataset(n)
-		input_sets = []
-		output_sets = []
-		num_examples = 0
-		curr_segment = 0
-		while curr_segment < self._segments or num_examples >= n:
-			# while true, add a segment to the new dataset
-			if num_examples < n:
-				# if not enough examples are accumulated, accumulate more
-				inputs, outputs = self._load_segment(curr_segment)
-				input_sets.append(inputs)
-				output_sets.append(outputs)
-				num_examples += outputs.shape[0]
-				curr_segment += 1
-			inputs = np.concatenate(input_sets, axis=0)
-			outputs = np.concatenate(output_sets, axis=0)
-			if outputs.shape[0] > n:
+		accum_inputs, accum_outputs = None, None
+		next_segment = 0
+		while next_segment < self._segments:
+			# if not enough segments are accumulated, load one
+			if accum_outputs is None or accum_outputs.shape[0] < n:
+				seg_inputs, seg_outputs = self._load_segment(next_segment)
+				if accum_inputs is None:
+					accum_inputs, accum_outputs = seg_inputs, seg_outputs
+				else:
+					accum_inputs = np.concatenate((accum_inputs, seg_inputs),
+						axis=0)
+					accum_outputs = np.concatenate((accum_outputs, seg_outputs),
+						axis=0)
+				next_segment += 1
+			# if enough segments are accumulated, save one
+			if accum_outputs.shape[0] >= n:
 				# add only the first n if extra have been accumulated
-				inputs, input_sets = inputs[:n, ...], [inputs[n:, ...]]
-				outputs, output_sets = outputs[:n, ...], [outputs[n:, ...]]
-				num_examples = output_sets[0].shape[0]
-			new_dataset._add_segment(inputs, outputs)
+				save_inputs = accum_inputs[:n, ...]
+				accum_inputs = accum_inputs[n:, ...]
+				save_outputs = accum_outputs[:n, ...]
+				accum_outputs = accum_outputs[n:, ...]
+				new_dataset._add_segment(save_inputs, save_outputs)
 		# make this dataset be like the new dataset
 		self.close()
 		self._segment_size = new_dataset._segment_size
