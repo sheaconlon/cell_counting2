@@ -229,11 +229,13 @@ class Dataset(object):
 			dst = smaller._get_segment_path(i)
 			shutil.copytree(src, dst)
 		smaller._segments = smaller_limit
+		smaller._save_metadata()
 		for i in range(smaller_limit, self._segments):
 			src = self._get_segment_path(i)
 			dst = larger._get_segment_path(i - smaller_limit)
 			shutil.copytree(src, dst)
 		larger._segments = self._segments - smaller_limit
+		larger._save_metadata()
 		return larger, smaller
 
 	def map(self, fn):
