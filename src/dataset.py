@@ -21,17 +21,27 @@ class Dataset(object):
 
 	SEGMENT_POOL_MULTIPLIER = 5
 
-	def __init__(self, segment_size):
+	def __init__(self, path, segment_size=None):
 		"""Create a dataset.
 
+		Note that only dataset sizes which are a multiple of segment_size will
+			be allowed and any excess examples will be discarded.
+
 		Args:
-			segment_size (int): The number of examples to store per file. Note
-				that only dataset sizes which are a multiple of segment_size
-				will be allowed and any excess examples will be discarded.
+			path (str): The path to a directory in which to store this dataset,
+				or if segment_size is omitted, the path to a directory in which
+				a previously-stored dataset is stored.
+			segment_size (int): The number of examples to store per file.  If
+				omitted or None, this dataset will represent a previously-stored
+				one (see description for path).
 		"""
-		self._segment_size = segment_size
-		self._segments = 0
-		self._segment_dir = tempfile.TemporaryDirectory()
+		self._path = path
+		if segment_size is None:
+			self._load_metadata()
+		else:
+			self._segment_size = segment_size
+			self._segments = 0
+			self._save_metadata()
 
 	class ImageIntegerIterator(object):
 		def __init__(self, image_dir_path, labels, shape):
@@ -191,7 +201,7 @@ class Dataset(object):
 		"""
 		return self._segments * self._segment_size
 
-	def split(self, p):
+	def split(self, p, path_larger, path_smaller):
 		"""Split this dataset.
 
 		Note: Will assign entire segments to one part of the split or the other.
@@ -202,22 +212,26 @@ class Dataset(object):
 		Args:
 			p (float): The proportion of the dataset to put in the smaller part
 				of the split.
+			path_larger (str): The path to a directory in which to store the
+				larger part of the split.
+			path_smaller (str): The path to a directory in which to store the
+				smaller part of the split.
 
 		Returns:
 			(tuple of dataset.Dataset): The two datasets that result from the
 				split. The smaller one is last.
 		"""
-		smaller = Dataset(int(self._segment_size))
-		larger = Dataset(int(self._segment_size))
+		smaller = Dataset(path_smaller, int(self._segment_size))
+		larger = Dataset(path_larger, int(self._segment_size))
 		smaller_limit = int(p * self._segments)
 		for i in range(smaller_limit):
-			src = os.path.join(self._segment_dir.name, str(i))
-			dst = os.path.join(smaller._segment_dir.name, str(i))
+			src = self._get_segment_path(i)
+			dst = smaller._get_segment_path(i)
 			shutil.copytree(src, dst)
 		smaller._segments = smaller_limit
 		for i in range(smaller_limit, self._segments):
-			src = os.path.join(self._segment_dir.name, str(i))
-			dst = os.path.join(larger._segment_dir.name, str(i - smaller_limit))
+			src = self._get_segment_path(i)
+			dst = larger._get_segment_path(i - smaller_limit)
 			shutil.copytree(src, dst)
 		larger._segments = self._segments - smaller_limit
 		return larger, smaller
@@ -256,13 +270,15 @@ class Dataset(object):
 				inputs and a new array of outputs to replace this batch.
 		"""
 		for segment_i in range(self._segments):
-			segment_dir = os.path.join(self._segment_dir.name, str(segment_i))
-			inputs = np.load(os.path.join(segment_dir, "inputs.npy"))
-			outputs = np.load(os.path.join(segment_dir, "outputs.npy"))
+			inputs_path = self._get_segment_file_path(segment_i, "inputs.npy")
+			outputs_path = self._get_segment_file_path(segment_i, "outputs.npy")
+			inputs = np.load(inputs_path)
+			outputs = np.load(outputs_path)
 			new_inputs, new_outputs = fn((inputs, outputs))
 			self._segment_size = new_inputs.shape[0]
-			np.save(os.path.join(segment_dir, "inputs.npy"), new_inputs)
-			np.save(os.path.join(segment_dir, "outputs.npy"), new_outputs)
+			self._save_metadata()
+			np.save(inputs_path, new_inputs)
+			np.save(outputs_path, new_outputs)
 
 	def set_segment_size(self, n):
 		"""Set the segment size of this dataset, the number of examples that
@@ -274,7 +290,7 @@ class Dataset(object):
 		Args:
 			n (int): The new segment size.
 		"""
-		new_dataset = Dataset(n)
+		scratch_dataset = Dataset(tempfile.mkdtemp(), n)
 		accum_inputs, accum_outputs = None, None
 		next_segment = 0
 		while next_segment < self._segments:
@@ -296,12 +312,14 @@ class Dataset(object):
 				accum_inputs = accum_inputs[n:, ...]
 				save_outputs = accum_outputs[:n, ...]
 				accum_outputs = accum_outputs[n:, ...]
-				new_dataset._add_segment(save_inputs, save_outputs)
+				scratch_dataset._add_segment(save_inputs, save_outputs)
 		# make this dataset be like the new dataset
-		self.close()
-		self._segment_size = new_dataset._segment_size
-		self._segment_dir = new_dataset._segment_dir
-		self._segments = new_dataset._segments
+		shutil.rmtree(self._path)
+		shutil.copytree(scratch_dataset._path, self._path)
+		scratch_dataset.close()
+		self._segment_size = scratch_dataset._segment_size
+		self._segments = scratch_dataset._segments
+		self._save_metadata()
 
 	def get_batch(self, size):
 		"""Get a batch of examples.
@@ -320,10 +338,10 @@ class Dataset(object):
 		chosen_segments = random.sample(range(self._segments), segments_needed)
 		cache = []
 		for segment in chosen_segments:
-			this_segment_dir = os.path.join(self._segment_dir.name,
-				str(segment))
-			inputs = np.load(os.path.join(this_segment_dir, "inputs.npy"))
-			outputs = np.load(os.path.join(this_segment_dir, "outputs.npy"))
+			inputs_path = self._get_segment_file_path(segment, "inputs.npy")
+			outputs_path = self._get_segment_file_path(segment, "outputs.npy")
+			inputs = np.load(inputs_path)
+			outputs = np.load(outputs_path)
 			cache.append((inputs, outputs))
 		chosen_examples = random.sample(
 			range(segments_needed * self._segment_size), size)
@@ -361,8 +379,8 @@ class Dataset(object):
 
 		This method must be called because it deletes temporary files on disk.
 		"""
-		self._segment_dir.__exit__(None, None, None)
-		self._segment_dir = None
+		shutil.rmtree(self._path)
+		self._path = None
 
 	def _load_examples(self, example_iterator):
 		inputs, outputs = [], []
@@ -377,18 +395,47 @@ class Dataset(object):
 				inputs, outputs = [], []
 
 	def _add_segment(self, inputs, outputs):
-		this_segment_dir = os.path.join(self._segment_dir.name,
-			str(self._segments))
-		os.mkdir(this_segment_dir)
-		np.save(os.path.join(this_segment_dir, "inputs.npy"), inputs)
-		np.save(os.path.join(this_segment_dir, "outputs.npy"), outputs)
+		segment_path = self._get_segment_path(self._segments)
+		os.mkdir(segment_path)
+		inputs_path = self._get_segment_file_path(self._segments, "inputs.npy")
+		outputs_path = self._get_segment_file_path(self._segments,
+			"outputs.npy")
+		np.save(inputs_path, inputs)
+		np.save(outputs_path, outputs)
 		self._segments += 1
+		self._save_metadata()
 
 	def _load_segment(self, segment):
-		segment_dir = os.path.join(self._segment_dir.name, str(segment))
-		inputs = np.load(os.path.join(segment_dir, "inputs.npy"))
-		outputs = np.load(os.path.join(segment_dir, "outputs.npy"))
+		inputs_path = self._get_segment_file_path(segment, "inputs.npy")
+		outputs_path = self._get_segment_file_path(segment, "outputs.npy")
+		inputs = np.load(inputs_path)
+		outputs = np.load(outputs_path)
 		return inputs, outputs
+
+	def _get_segment_path(self, segment):
+		return os.path.join(self._path, str(segment))
+
+	def _get_segment_file_path(self, segment, filename):
+		segment_path = self._get_segment_path(segment)
+		segment_data_path = os.path.join(segment_path, filename)
+		return segment_data_path
+
+	def _save_metadata(self):
+		meta_path = self._get_segment_path("meta")
+		os.makedirs(meta_path, exist_ok=True)
+		segment_size_path = self._get_segment_file_path("meta",
+			"segment_size.npy")
+		segments_path = self._get_segment_file_path("meta", "segments.npy")
+		np.save(segment_size_path, self._segment_size)
+		np.save(segments_path, self._segments)
+
+	def _load_metadata(self):
+		meta_path = self._get_segment_path("meta")
+		segment_size_path = self._get_segment_file_path("meta",
+			"segment_size.npy")
+		segments_path = self._get_segment_file_path("meta", "segments.npy")
+		self._segment_size = int(np.load(segment_size_path))
+		self._segments = int(np.load(segments_path))
 
 	@staticmethod
 	def _load_excel_mapping(path, key_col, value_col):
