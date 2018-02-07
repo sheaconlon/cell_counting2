@@ -11,6 +11,8 @@ import shutil
 import tensorflow as tf
 from sklearn.feature_extraction import image
 
+from concurrent import futures
+
 class Dataset(object):
 	"""A dataset consisting of some examples of input/output pairs. Minimizes
 	memory usage by keeping most of the dataset on disk at any given time.
@@ -42,6 +44,66 @@ class Dataset(object):
 			self._segment_size = segment_size
 			self._segments = 0
 			self._save_metadata()
+
+	def initialize_from_aspects(self, path, transform):
+		"""Initialize by reading some examples' aspects and generating inputs
+			and outputs from them.
+
+			Each directory in the data directory will be interpreted as
+				representing an example. In each of these example directories,
+				each file will be interpreted as representing an aspect of the
+				example, with the aspect's name being the file's base name and
+				the aspect's value being the file's contents. Each aspect file
+				must be in either a PNG or CSV format, with the appropriate file
+				extension. Images must be 8-bit grayscale.
+
+		Args:
+			path (str): The path to the data directory.
+			transform (func): A function that when called with a dictionary
+				mapping aspect names to aspect values for a particular example
+				returns a tuple of input np.ndarray and output np.ndarray for
+				that example.
+		"""
+		def get_example(dir_ent):
+			if not dir_ent.is_dir():
+				return
+			aspects = {}
+			with os.scandir(dir_ent.path) as example_dir_it:
+				for example_dir_ent in example_dir_it:
+					if example_dir_ent.is_dir():
+						continue
+					name, _ = os.path.splitext(example_dir_ent.name)
+					name = name.lower()
+					val = self._read_aspect(example_dir_ent.path)
+					aspects[name] = val
+			return transform(aspects)
+		inputs, outputs = [], []
+		with futures.ThreadPoolExecutor() as executor:
+			for example in executor.map(get_example, os.scandir(path)):
+				inp, out = example
+				inputs.append(inp)
+				outputs.append(out)
+		def example_iterable():
+			for inp, out in zip(inputs, outputs):
+				yield inp, out
+		self._load_examples(example_iterable())
+
+	_aspect_readers = {}
+
+	@staticmethod
+	def _read_aspect(path):
+		_, ext = os.path.splitext(path)
+		ext = ext.lower()
+		if ext in Dataset._aspect_readers:
+			return Dataset._aspect_readers[ext](path)
+		else:
+			raise ValueError("aspect file at {0:s} is not of supported type" \
+				.format(path))
+
+	def _read_aspect_png(path):
+		return ndimage.imread(path, mode="L")
+
+	_aspect_readers[".png"] = _read_aspect_png
 
 	class ImageIntegerIterator(object):
 		def __init__(self, image_dir_path, labels, shape):
