@@ -6,6 +6,7 @@ all: easy
 easy: clean-easy get-easy
 
 get-easy:
+	rm -f easy-v$(EASY_VERSION).zip
 	wget $(FILESERVER)/easy-v$(EASY_VERSION).zip
 	unzip easy-v$(EASY_VERSION).zip
 	rm -f easy-v$(EASY_VERSION).zip
