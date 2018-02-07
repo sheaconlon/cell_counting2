@@ -1,5 +1,5 @@
 FILESERVER=https://d1rq19kap4wht6.cloudfront.net
-EASY_VERSION=1
+EASY_VERSION=2
 
 all: easy
 	
