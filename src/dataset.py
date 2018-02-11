@@ -105,6 +105,11 @@ class Dataset(object):
 
 	_aspect_readers[".png"] = _read_aspect_png
 
+	def _read_aspect_csv(path):
+		return np.loadtxt(path, delimiter=',')
+
+	_aspect_readers[".csv"] = _read_aspect_csv
+
 	class ImageIntegerIterator(object):
 		def __init__(self, image_dir_path, labels, shape):
 			self._image_dir_path = image_dir_path
