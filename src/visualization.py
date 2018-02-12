@@ -1,31 +1,57 @@
+import itertools, math
+
 import matplotlib.pyplot as plt
 import numpy as np
 
-import itertools
-
 PLT_DPI = 100
 
-def show_image_grid(images, rows, cols, height, width, title, subtitles=None):
-    amin = np.amin(images)
-    if amin < 0:
-        images += -1 * amin
-    amax = np.amax(images)
-    if amax > 1:
-        images = images / amax
-    plt.close()
+def plot_images(images, cols, dims, title, subtitles=None):
+    """Plot images in a grid.
+
+    Args:
+        images (np.ndarray): The images. Must have shape (num_images, ...).
+        cols (int): The number of grid columns.
+        dims (tuple of float): The dimensions to plot each image with, as a tuple of height and width, both in inches.
+        title (str): The title for the plot.
+        subtitles (list of str): The list of subtitles for the images. The i-th element is the subtitle for the i-th
+            image. If omitted or None, no subtitles are plotted.
+    """
+    TITLE_FONT_SIZE = 20
+    SUBTITLE_FONT_SIZE = 12
+    TOP_SUBPLOTS_ADJUST_FIXED = 0.9
+    TIGHT_LAYOUT_H_PAD = 2.5
+    TIGHT_LAYOUT_W_PAD = 1
+
+    assert cols > 0, "argument cols must be > 0"
+    assert len(dims) == 2, "argument dims must have length 2"
+    assert subtitles is None or len(subtitles) == images.shape[0], "argument subtitles must be omitted, None, or a " \
+                                                                   "sequence of length images.shape[0]"
+
+    images_min = np.amin(images)
+    if images_min < 0:
+        images += -1 * images_min
+    images_max = np.amax(images)
+    if images_max > 1:
+        images = images / images_max
+
+    rows = math.ceil(images.shape[0] / cols)
     fig, ax_arr = plt.subplots(rows, cols)
-    ax_arr = ax_arr.flatten()
     fig.set_dpi(PLT_DPI)
-    fig.set_size_inches(width, height)
-    plt.suptitle(title, fontsize=22)
-    plt.tight_layout(rect=(0, 0, 1, 0.85))
-    i = 0
-    for x in range(rows):
-        for y in range(cols):
-            ax_arr[x*cols + y].imshow(images[i, ...])
-            if subtitles is not None:
-                ax_arr[x*cols + y].set_title(subtitles[i], fontsize=16)
-            i += 1
+    ax_arr = ax_arr.flatten()
+    fig_width, fig_height = cols*dims[1], rows*dims[1]
+    fig.set_size_inches(fig_width, fig_height)
+    fig.tight_layout(h_pad=TIGHT_LAYOUT_H_PAD, w_pad=TIGHT_LAYOUT_W_PAD)
+    fig.subplots_adjust(top=fig_height/(fig_height+TOP_SUBPLOTS_ADJUST_FIXED))
+
+    for i in range(images.shape[0]):
+        ax_arr[i].imshow(images[i, ...])
+        if subtitles is not None:
+            ax_arr[i].set_title(subtitles[i], fontsize=SUBTITLE_FONT_SIZE)
+
+    for i in range(images.shape[0], ax_arr.shape[0]):
+        ax_arr[i].set_axis_off()
+
+    plt.suptitle(title, fontsize=TITLE_FONT_SIZE)
     plt.show()
     plt.close()
 
