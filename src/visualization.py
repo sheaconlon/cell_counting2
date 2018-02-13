@@ -3,7 +3,7 @@ import itertools, math
 import matplotlib.pyplot as plt
 import numpy as np
 
-PLT_DPI = 100
+PLT_DPI = 300
 
 def plot_images(images, cols, dims, title, subtitles=None):
     """Plot images in a grid.
@@ -37,7 +37,10 @@ def plot_images(images, cols, dims, title, subtitles=None):
     rows = math.ceil(images.shape[0] / cols)
     fig, ax_arr = plt.subplots(rows, cols)
     fig.set_dpi(PLT_DPI)
-    ax_arr = ax_arr.flatten()
+    if images.shape[0] > 1:
+        ax_arr = ax_arr.flatten()
+    else:
+        ax_arr = np.array([ax_arr])
     fig_width, fig_height = cols*dims[1], rows*dims[1]
     fig.set_size_inches(fig_width, fig_height)
     fig.tight_layout(h_pad=TIGHT_LAYOUT_H_PAD, w_pad=TIGHT_LAYOUT_W_PAD)
