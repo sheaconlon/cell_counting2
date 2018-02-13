@@ -3,7 +3,7 @@ import time
 import tensorflow as tf
 import numpy as np
 
-from src.model import model
+from src import model
 
 class NeuralNet(model.BaseModel):
 	def __init__(self, save_dir, chkpt_save_interval, loss_fn,

@@ -2,7 +2,7 @@ import time
 
 import tensorflow as tf
 
-from src.model import neural_net
+from src import neural_net
 from src import losses
 
 class ConvNet2(neural_net.NeuralNet):

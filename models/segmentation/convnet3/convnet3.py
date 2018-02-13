@@ -3,7 +3,7 @@ import math
 import tensorflow as tf
 import numpy as np
 
-from src.model import neural_net
+from src import neural_net
 from src import losses
 
 class ConvNet3(neural_net.NeuralNet):
