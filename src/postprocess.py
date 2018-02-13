@@ -34,7 +34,7 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
         (int) The number of regions in the image.
     """
     RGB_MAX = 255
-    DEBUG_PLOT_DIMS = (3, 3)
+    DEBUG_PLOT_DIMS = (8, 8)
     INSIDE_CLASS = 0
 
     assert patch_size >= 3, "argument patch_size must be >= 3"
@@ -50,7 +50,7 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
     image = image / RGB_MAX
     if debug:
         visualization.plot_images(image[np.newaxis, ...], 1, DEBUG_PLOT_DIMS,
-                                  "original")
+                                  "image")
 
     def classify_batch(n):
         probs = patch_classifier(patch_batch[:n, ...])
