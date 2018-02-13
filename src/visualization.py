@@ -3,7 +3,7 @@ import itertools, math
 import matplotlib.pyplot as plt
 import numpy as np
 
-PLT_DPI = 100
+PLT_DPI = 300
 
 def plot_images(images, cols, dims, title, subtitles=None):
     """Plot images in a grid.
