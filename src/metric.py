@@ -84,7 +84,7 @@ class ConfusionMatrixMetric(BaseMetric):
 		examples_seen, conf_mtxs = self.get_results()
 		visualization.plot_confusion_matrix(conf_mtxs[-1], title, height, width)
 
-class NonexclusiveConfusionMatrixMetric(BaseMetric):
+class NonexclusiveConfusionMatrixMetric(ConfusionMatrixMetric):
 	"""A nonexclusive confusion matrix metric.
 
 	A nonexclusive confusion matrix views a model as producing a prediction
@@ -101,13 +101,10 @@ class NonexclusiveConfusionMatrixMetric(BaseMetric):
 		"""Create a nonexclusive confusion matrix metric.
 
 		Args:
-			batch (tuple of np.ndarray): A batch of input and output data to
-				test models with.
-			num_classes (int): The number of classes.
+			batch (tuple of np.ndarray): See ConfusionMatrixMetric.__init__.
+			num_classes (int): See ConfusionMatrixMetric.__init__.
 		"""
-		super().__init__()
-		self._batch = batch
-		self._num_classes = num_classes
+		super().__init__(batch, num_classes)
 
 	def evaluate(self, model):
 		"""Calculate the nonexclusive confusion matrix of a model. Also records
