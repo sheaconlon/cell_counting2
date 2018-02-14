@@ -15,13 +15,13 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
             channels).
         patch_size (int): The side length of the patches to feed to
             patch_classifier, in pixels. Must be odd and at least 3.
-        patch_scorer (func): The patch scorer. Takes as argument a np.ndarray
-            of shape (num_patches, patch_size, patch_size, channels) giving
-            a sequence of patches of the image. Returns a np.ndarray of shape
-            (num_patches, 3), where the i-th row pertains to the pixel at the
-            center of the i-th patch and gives the probabilities of that pixel
-            being inside a region, on the edge of a region, and outside all
-            regions, respectively.
+        patch_classifier (func): The patch scorer. Takes as argument a
+            np.ndarray of shape (num_patches, patch_size, patch_size,
+            channels) giving a sequence of patches of the image. Returns a
+            np.ndarray of shape (num_patches, 3), where the i-th row pertains to
+            the pixel at the center of the i-th patch and gives the
+            probabilities of that pixel being inside a region, on the edge of a
+            region, and outside all regions, respectively.
         batch_size (int): The ideal number of patches to submit to
             patch_scorer in each call.
         min_dist (int): The minimum distance between the centers of two regions,
