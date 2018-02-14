@@ -162,7 +162,7 @@ class LossMetric(BaseMetric):
 		"""
 		inputs, outputs = self._batch
 		pred_outputs = model.predict(inputs)
-		loss = self._loss_fn(pred_outputs, outputs)
+		loss = self._loss_fn(outputs, pred_outputs)
 		self._record(model, loss)
 		return loss
 
