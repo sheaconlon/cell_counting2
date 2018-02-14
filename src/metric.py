@@ -1,5 +1,5 @@
 import itertools, time
-
+from . import visualization
 import tensorflow as tf
 import numpy as np
 
@@ -78,6 +78,11 @@ class ConfusionMatrixMetric(BaseMetric):
 		conf_mtx = np.transpose(conf_mtx)
 		self._record(model, conf_mtx)
 		return conf_mtx
+
+	def plot(self, title, height, width):
+		"""Plot this metric."""
+		examples_seen, conf_mtxs = self.get_results()
+		visualization.plot_confusion_matrix(conf_mtxs[-1], title, height, width)
 
 class NonexclusiveConfusionMatrixMetric(BaseMetric):
 	"""A nonexclusive confusion matrix metric.
@@ -163,6 +168,12 @@ class LossMetric(BaseMetric):
 		loss = self._loss_fn(pred_outputs, outputs)
 		self._record(model, loss)
 		return loss
+
+	def plot(self, title, x_lab, y_lab, height, width):
+		"""Plot this metric."""
+		examples_seen, losses = self.get_results()
+		visualization.plot_line(examples_seen, losses, title, x_lab, y_lab,
+								height, width)
 
 class OffByCountMetric(BaseMetric):
 	"""An off-by count metric."""
