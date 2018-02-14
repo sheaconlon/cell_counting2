@@ -27,3 +27,15 @@ def make_class_difference_loss(class_fn=lambda x: x, exp=1):
 		diffs = tf.pow(diffs, exp)
 		return tf.reduce_sum(diffs, name="loss")
 	return class_difference_loss
+
+def make_cross_entropy_loss():
+    """Make a softmax cross-entropy loss function.
+
+    Returns:
+        (func) Cross-entropy loss function. Takes as input the correct outputs
+            (np.ndarray) and predicted outputs (np.ndarray) for a batch of
+            examples. Returns the cross-entropy loss for that batch (tf.Tensor).
+    """
+    def cross_entropy_loss(actual, pred):
+        return tf.losses.softmax_cross_entropy(actual, pred)
+    return cross_entropy_loss

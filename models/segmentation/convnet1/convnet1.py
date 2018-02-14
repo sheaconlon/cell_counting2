@@ -76,8 +76,7 @@ class ConvNet1(neural_net.NeuralNet):
 
 		   	full(3, "l10-full")
 		)
-		def loss_fn(actual, predicted):
-			return tf.losses.softmax_cross_entropy(actual, predicted)
+		loss_fn = losses.make_cross_entropy_loss()
 		def optimizer_factory(global_step):
 			learning_rate = tf.train.exponential_decay(0.01, global_step, 1,
 				1 - 1e-6, staircase=True)
