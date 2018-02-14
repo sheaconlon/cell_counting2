@@ -5,6 +5,8 @@ import numpy as np
 
 from src import model
 
+tf.logging.set_verbosity(tf.logging.ERROR)
+
 class NeuralNet(model.BaseModel):
 	def __init__(self, save_dir, chkpt_save_interval, loss_fn,
 			optimizer_factory, layers):
