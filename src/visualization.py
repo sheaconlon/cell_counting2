@@ -34,9 +34,10 @@ def plot_images(images, cols, dims, title, subtitles=None):
     if images_max > 1:
         images = images / images_max
 
+    plt.figure(dpi=PLT_DPI)
+
     rows = math.ceil(images.shape[0] / cols)
     fig, ax_arr = plt.subplots(rows, cols)
-    fig.set_dpi(PLT_DPI)
     if images.shape[0] > 1:
         ax_arr = ax_arr.flatten()
     else:
