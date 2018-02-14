@@ -9,6 +9,7 @@ class BaseModel(object):
 	_CHKPT_MAX = 2
 	_LOG_STEPS = 100
 	_TRAIN_STEPS = 10
+	_SECS_PER_MIN = 60
 
 	def __init__(self, save_dir, chkpt_save_interval, loss_fn,
 			optimizer_factory):
@@ -17,7 +18,7 @@ class BaseModel(object):
 		Args:
 			save_dir (str): The path of the directory to save the model in
 				and/or load the model from.
-			chkpt_save_interval (int): The number of seconds to wait between
+			chkpt_save_interval (int): The number of minutes to wait between
 				saving checkpoints into save_dir.
 			loss_fn (func(tf.Tensor, tf.Tensor) -> tf.Tensor): Takes the correct
 				outputs and the predicted outputs for a batch, both as tensors
@@ -28,7 +29,7 @@ class BaseModel(object):
 				the neural net.
 		"""
 		config = tf.estimator.RunConfig(model_dir=save_dir,
-			save_checkpoints_secs=chkpt_save_interval,
+			save_checkpoints_secs=chkpt_save_interval*self._SECS_PER_MIN,
 			keep_checkpoint_max=self._CHKPT_MAX,
 			log_step_count_steps=self._LOG_STEPS)
 		model_fn = self._make_model_fn(loss_fn, optimizer_factory)
