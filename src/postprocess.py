@@ -5,10 +5,12 @@ from skimage import feature, morphology
 from . import visualization
 
 def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
-                  min_diam, debug=False):
+                  min_diam, sampling_interval=1, debug=False):
     """Count the number of regions in an image. Uses a classifier that can, for
         any given pixel of the image, give the probabilities of that pixel being
         inside a region, on the edge of a region, and outside all regions.
+
+    Treats the edges of the image accoring to the "valid" strategy.
 
     Args:
         image (np.ndarray): The image. Must have shape (height, width,
@@ -27,6 +29,10 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
         min_dist (int): The minimum distance between the centers of two regions,
             in pixels.
         min_diam (float): The minimum diameter of a region, in pixels.
+        sampling_interval (int): In every square of the image with side length
+            sampling_interval pixels, a single pixel will be chosen for
+            classification. The default value is 1, which causes every pixel to
+            be classified.
         debug (bool): Whether to plot each intermediate step for debugging
             purposes. False by default.
 
@@ -41,6 +47,7 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
     assert patch_size % 2 != 0, "argument patch_size must be odd"
     assert batch_size > 0, "argument batch_size must be > 0"
     assert min_dist > 0, "argument min_dist must be > 0"
+    assert sampling_interval >= 1, "argument sampling_interval must be >= 1"
 
     half_size = patch_size // 2
     patch_batch = np.zeros((batch_size, patch_size, patch_size, image.shape[2]))
@@ -56,8 +63,9 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
         probs = patch_classifier(patch_batch[:n, ...])
         classes.extend(np.argmax(probs, axis=1))
 
-    for y in range(half_size, image.shape[0] - half_size):
-        for x in range(half_size, image.shape[1] - half_size):
+    for y in range(half_size, image.shape[0] - half_size, sampling_interval):
+        for x in range(half_size, image.shape[1] - half_size,
+                       sampling_interval):
             xmin, xmax = x-half_size, x+half_size
             ymin, ymax = y-half_size, y+half_size
             patch_batch[patch_num, ...] = image[ymin:(ymax+1), xmin:(xmax+1), :]
@@ -67,8 +75,10 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
     if patch_num != 0:
         classify_batch(patch_num)
 
-    inside_height = image.shape[0] - (2*half_size)
-    inside_width = image.shape[1] - (2*half_size)
+    inside_height = len(range(half_size, image.shape[0] - half_size,
+                              sampling_interval))
+    inside_width = len(range(half_size, image.shape[1] - half_size,
+                             sampling_interval))
     inside_image = np.full((inside_height, inside_width), False)
     patch_num = 0
     for y in range(inside_height):
