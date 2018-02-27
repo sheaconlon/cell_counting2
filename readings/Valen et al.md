@@ -45,3 +45,33 @@ This paper uses conv-nets to classify pixels as "background", "cell border", or 
 20. features, multi-resolution base pixels here+nuclei labeled for mammalian cytoplasm
 21. training dataset class distribution, artificially equalized here
 22. ensembling techniques, mean of 5 here
+
+## Normalization Procedure
+From Discussion > Design rules for new conv-nets:
+>> First, we found that image normalization was critically important for robustness, segmentation performance, and processing speed. We tried three different normalization schemes—normalizing images by the median pixel value, by the maximum pixel value, or not at all. We found that normalizing by the median pixel value was best with respect to robust performance on images acquired with different illumination intensities. In the case of semantic segmentation, we found that without proper normalization, the conv-nets learned intensity differences between the MCF10A and NIH-3T3 data sets instead of differences in cell morphology. This led to poor performance when the conv-nets were applied to new images, as they classified all the cells as the same cell-type based on the images illumination (see S13 Fig). Furthermore, the normalization choice impacts whether or not a fully convolutional implementation of conv-nets can be used when segmenting new images. Normalizing patches by their standard deviation, for instance, or performing PCA based whitening would require new images to be processed in a patch-by-patch manner. We note that in our experience, performance was optimal when the illumination intensity was reasonably similar to or higher than the illumination used to acquire the training data.
+
+From Supporting Information > S1 Text.DOCX > Upstream and downstream processing:
+>> New images were normalized in the same fashion as the training data (dividing by the 50th percentile pixel value and subtracting an image of the local mean)
+
+From Supporting Information > S1 Text.DOCX > Constructing training datasets
+>> Each channel in the training image was then normalized by first dividing by the 50th percentile pixel value and then subtracting an image of a local mean that was obtained by applying an averaging filter. The dimensions of the averaging filter were the same as the conv-net's receptive field - i.e. 31 x 31 for bacterial images and 61 x 61 for everything else. This modification was chosen because executing a conv-net in a fully convolutional manner requires that the normalization method take the entire image as an input, not small windows.
+
+From [Making training data.ipynb](https://github.com/CovertLab/DeepCell/blob/30091858caaa1f9093e4fe23f4fd8407c528d64a/keras_version/Making%20training%20data.ipynb) in the Github repository:
+```python
+for channel in channel_names:
+	for img in imglist: 
+		if fnmatch.fnmatch(img, r'*' + channel + r'*'):
+			channel_file = img
+			channel_file = os.path.join(direc_name, direc, channel_file)
+			channel_img = get_image(channel_file)
+		
+              # Normalize the images
+			p50 = np.percentile(channel_img, 50)
+			channel_img /= p50
+			
+			avg_kernel = np.ones((2*window_size_x + 1, 2*window_size_y + 1))
+			channel_img -= ndimage.convolve(channel_img, avg_kernel)/avg_kernel.size
+
+			channels[direc_counter,channel_counter,:,:] = channel_img
+			channel_counter += 1
+```
