@@ -137,3 +137,24 @@ def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
         plt.plot(xs, ys, label=line_label, color=color, linewidth=0.5)
     plt.show()
     plt.close()
+
+def plot_scatter(xs, ys, title, x_label, y_label, height, width):
+    """Make a scatterplot.
+
+    Args:
+        xs (list of float): The x-values.
+        ys (list of float): The y-values.
+        title (str): The title.
+        x_label (str): The label for the x-axis.
+        y_label (str): The label for the y-axis.
+        height (int): The height of the plot, in inches.
+        width (int): The width of the plot, in inches.
+    """
+    plt.close()
+    plt.figure(figsize=(width, height), dpi=PLT_DPI)
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.scatter(xs, ys)
+    plt.show()
+    plt.close()
