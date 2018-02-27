@@ -54,7 +54,6 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
     patch_num = 0
     classes = []
 
-    image = image / RGB_MAX
     if debug:
         visualization.plot_images(image[np.newaxis, ...], 1, DEBUG_PLOT_DIMS,
                                   "image")
