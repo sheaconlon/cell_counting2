@@ -138,10 +138,10 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
             produce the desired class_dist. If omitted or None, the maximum is
             infinity.
         class_dist (dict(int, float)): The desired class distribution of the
-            patches. class_dist[class_] is the fraction of the patches which
-            should be of class class_. If omitted or None, a uniform
-            distribution is assumed. Note that the resulting class distribution
-            will not be exactly class_dist.
+            patches. class_dist[cls] is the fraction of the patches which should
+            be of cls. If omitted or None, a uniform distribution is assumed.
+            Note that the resulting class distribution will not be exactly
+            class_dist.
 
     Returns:
         (tuple(np.ndarray, np.ndarray)): Patches of the image (shape
