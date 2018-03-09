@@ -1,7 +1,7 @@
 scipy
 numpy
 openpyxl
-tensorflow
+tensorflow==1.5
 sklearn
 scikit-image
 matplotlib
