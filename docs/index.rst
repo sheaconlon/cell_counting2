@@ -1,5 +1,34 @@
-Welcome to cell_counting's documentation!
-=========================================
+$project
+========
+
+$project provides tools for counting cell colonies on plates of growth medium.
+
+Look how easy it is to use:
+
+    <TODO>
+
+Features
+--------
+
+- Convolutional neural networks for image processing with (hopefully) less parameter tuning
+
+Installation
+------------
+
+Install $project by running:
+
+    pip install \ $project\ 
+
+Contribute
+----------
+
+- Issue Tracker: github.com/sheaconlon/$project/issues
+- Source Code: github.com/sheaconlon/$project
+
+Support
+-------
+
+If you are having issues, you can email us at sheaconlon at berkeley.edu.
 
 .. toctree::
    :maxdepth: 3
