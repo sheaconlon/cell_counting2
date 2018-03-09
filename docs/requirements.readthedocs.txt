@@ -1,1 +1,8 @@
+scipy
+numpy
+openpyxl
+tensorflow
+sklearn
+scikit-image
+matplotlib
 src/
