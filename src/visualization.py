@@ -5,7 +5,7 @@ import numpy as np
 
 PLT_DPI = 300
 
-def plot_images(images, cols, dims, title, subtitles=None):
+def plot_images(images, cols, dims, title, subtitles=None, path=None):
     """Plot images in a grid.
 
     Args:
@@ -15,6 +15,8 @@ def plot_images(images, cols, dims, title, subtitles=None):
         title (str): The title for the plot.
         subtitles (list of str): The list of subtitles for the images. The i-th element is the subtitle for the i-th
             image. If omitted or None, no subtitles are plotted.
+        path (str): The path to save the plot to. If ``None`` or omitted, the
+            plot is showed.
     """
     TITLE_FONT_SIZE = 20
     SUBTITLE_FONT_SIZE = 12
@@ -56,7 +58,10 @@ def plot_images(images, cols, dims, title, subtitles=None):
         ax_arr[i].set_axis_off()
 
     plt.suptitle(title, fontsize=TITLE_FONT_SIZE)
-    plt.show()
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
 def plot_confusion_matrix(mtx, title, height, width):
