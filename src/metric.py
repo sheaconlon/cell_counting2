@@ -166,11 +166,11 @@ class LossMetric(BaseMetric):
 		self._record(model, loss)
 		return loss
 
-	def plot(self, title, x_lab, y_lab, height, width):
+	def plot(self, title, x_lab, y_lab, height, width, path=None):
 		"""Plot this metric."""
 		examples_seen, losses = self.get_results()
 		visualization.plot_line(examples_seen, losses, title, x_lab, y_lab,
-								height, width)
+								height, width, path)
 
 class OffByCountMetric(BaseMetric):
 	"""An off-by count metric."""
