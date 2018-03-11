@@ -16,7 +16,7 @@ def plot_images(images, cols, dims, title, subtitles=None, path=None):
         subtitles (list of str): The list of subtitles for the images. The i-th element is the subtitle for the i-th
             image. If omitted or None, no subtitles are plotted.
         path (str): The path to save the plot to. If ``None`` or omitted, the
-            plot is showed.
+            plot is shown.
     """
     TITLE_FONT_SIZE = 20
     SUBTITLE_FONT_SIZE = 12
@@ -92,7 +92,7 @@ def plot_confusion_matrix(mtx, title, height, width):
     plt.show()
     plt.close()
 
-def plot_line(xs, ys, title, x_label, y_label, height, width):
+def plot_line(xs, ys, title, x_label, y_label, height, width, path=None):
     """Plot a line.
 
     Args:
@@ -103,6 +103,8 @@ def plot_line(xs, ys, title, x_label, y_label, height, width):
         y_label (str): The label for the y-axis.
         height (int): The height of the plot, in inches.
         width (int): The width of the plot, in inches.
+        path (str): The path to save the plot to. If ``None`` or omitted, the
+            plot is shown.
     """
     plt.close()
     plt.figure(figsize=(width, height), dpi=PLT_DPI)
@@ -110,7 +112,10 @@ def plot_line(xs, ys, title, x_label, y_label, height, width):
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.plot(xs, ys)
-    plt.show()
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
 def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
