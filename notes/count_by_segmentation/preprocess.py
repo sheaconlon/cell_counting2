@@ -1,12 +1,22 @@
 """Preprocesses the easy dataset.
 
+Does the following:
 1. Resizes the images.
 2. Normalizes the images.
 3. Extracts patches from the images.
 4. Normalizes the patches.
 5. One-hot encodes the classes.
 
-Saves a `Dataset` in ``./easy``.
+Produces the following plots:
+1. originals_images.svg
+2. originals_inside_masks.svg
+3. originals_edge_masks.svg
+4. originals_outside_masks.svg
+5. patches.svg
+
+Saves the resulting `Dataset`s to disk.
+
+Run ``python preprocess.py -h`` to see usage details.
 """
 
 # ========================================
@@ -25,6 +35,7 @@ from src import dataset, preprocess, visualization
 # ===============================
 # Import from the Python library.
 # ===============================
+import argparse
 
 # ===========================
 # Import from other packages.
@@ -34,19 +45,27 @@ from scipy import misc
 import tqdm
 
 if __name__ == "__main__":
-    VERSION = 7
+    # ===============================
+    # Process command-line arguments.
+    # ===============================
+    parser = argparse.ArgumentParser(description='Preprocess the easy dataset.')
+    parser.add_argument('-v', metavar='version', type=int, nargs=1,
+                        help='a version number to save datasets with',
+                        default=1, required=False)
+    args = parser.parse_args()
+    version = args.v[0]
 
     # ======================
     # Make figure directory.
     # ======================
-    FIGURE_BASE_PATH = "figures-{0:d}".format(VERSION)
+    FIGURE_BASE_PATH = "figures-{0:d}".format(version)
 
-    os.makedirs(FIGURE_BASE_PATH)
+    os.makedirs(FIGURE_BASE_PATH, exist_ok=True)
 
     # =================
     # Load the dataset.
     # =================
-    SAVE_PATH = "easy-{0:d}".format(VERSION)
+    SAVE_PATH = "easy-{0:d}".format(version)
     EASY_PATH = "../../data/easy/data"
 
     with tqdm.tqdm(desc="load images/masks") as progress_bar:
@@ -120,8 +139,8 @@ if __name__ == "__main__":
     # ============================
     # Extract patches and classes.
     # ============================
-    MAX_PATCHES = 1_000 # used to be 10_000
-    SEGMENT_SIZE = 100 # used to be 1_000
+    MAX_PATCHES = 3_000 # used to be 10_000
+    SEGMENT_SIZE = 10 # used to be 1_000
 
     with tqdm.tqdm(desc="extract patches/classes from images/masks") as \
             progress_bar:
@@ -179,3 +198,14 @@ if __name__ == "__main__":
             progress_bar.update(images.shape[0])
             return (images, one_hot_classes)
         easy.map_batch(one_hot_encode_examples)
+
+    # ==============================================
+    # Split the dataset into training and test sets.
+    # ==============================================
+    TEST_P = 0.1
+    TRAIN_SAVE_PATH = "easy-{0:d}-train".format(version)
+    TEST_SAVE_PATH = "easy-{0:d}-test".format(version)
+
+    with tqdm.tqdm(desc="split dataset") as progress_bar:
+        easy.split(TEST_P, TRAIN_SAVE_PATH, TEST_SAVE_PATH)
+        progress_bar.update(1)
