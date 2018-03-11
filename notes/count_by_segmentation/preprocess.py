@@ -65,7 +65,7 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    SAVE_PATH = "easy-{0:d}".format(version)
+    SAVE_PATH = "easy-{0:d}-whole".format(version)
     EASY_PATH = "../../data/easy/data"
 
     with tqdm.tqdm(desc="load images/masks") as progress_bar:
@@ -144,20 +144,13 @@ if __name__ == "__main__":
 
     with tqdm.tqdm(desc="extract patches/classes from images/masks") as \
             progress_bar:
-        def extract_patches(example):
-            image, mask = example
+        def extract_patches(image, mask):
             class_image = np.argmin(mask, axis=2)
-            patches, classes = preprocess.extract_patches(image, class_image,
-                                                          TARGET_COLONY_DIAM,
-                                                          max_patches=
-                                                          MAX_PATCHES)
+            yield from preprocess.extract_patches_generator(image,
+                                            class_image, TARGET_COLONY_DIAM,
+                                            max_patches=MAX_PATCHES)
             progress_bar.update(1)
-            examples = []
-            for i in range(patches.shape[0]):
-                examples.append((patches[i, ...], classes[i]))
-            return examples
-        easy.map(extract_patches)
-        easy.set_segment_size(SEGMENT_SIZE)
+        easy = easy.map_generator(extract_patches, PATCH_SAVE_PATH, SEGMENT_SIZE)
 
     # =====================
     # Make "patches" plots.

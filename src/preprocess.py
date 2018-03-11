@@ -117,7 +117,7 @@ def one_hot_encode(labels, num_classes):
     with tf.Session() as sess:
         return sess.run(tf.one_hot(labels, num_classes))
 
-def extract_patches(image, class_image, size, max_patches=float("inf"),
+def extract_patches_generator(image, class_image, size, max_patches=float("inf"),
     class_dist=None):
     """
     Extract square patches of an image and their corresponding classes.
@@ -143,10 +143,9 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
             Note that the resulting class distribution will not be exactly
             class_dist.
 
-    Returns:
-        (tuple(np.ndarray, np.ndarray)): Patches of the image (shape
-            (n, size, size, 3)) and their corresponding classes
-            (shape (n)).
+    Yields:
+        (tuple): A tuple consisting of a patch (a `numpy.ndarray` with shape
+            (``size``, ``size``, ``image.shape[2]``)) and its class.
 
     Throws:
         ValueError if there are not enough patches of some class to fulfill
@@ -199,7 +198,6 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
     n = min(max_patches, n)
 
     # Extract the patches.
-    patches, classes = [], []
     for class_ in class_dist:
         # In the following line, we choose to extract too many patches of this
         # class rather than too few.
@@ -212,11 +210,38 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
             xmin, xmax = x-half_size, x+half_size
             ymin, ymax = y-half_size, y+half_size
             patch = image[ymin:(ymax+1), xmin:(xmax+1), :]
-            patches.append(patch)
-            classes.append(class_)
+            yield (patch, class_)
+
+def extract_patches(image, class_image, size, max_patches=float("inf"),
+    class_dist=None):
+    """
+    Extract square patches of an image and their corresponding classes.
+
+    See ``extract_patches_generator``.
+
+    Args:
+        image (np.ndarray): See ``extract_patches_generator``.
+        class_image (np.ndarray): See ``extract_patches_generator``.
+        size (int): See ``extract_patches_generator``.
+        max_patches (int): See ``extract_patches_generator``.
+        class_dist (dict(int, float)): See ``extract_patches_generator``.
+
+    Returns:
+        (tuple(np.ndarray, np.ndarray)): Patches of the image (shape
+            (n, size, size, 3)) and their corresponding classes
+            (shape (n)).
+
+    Throws:
+        See ``extract_patches_generator``.
+    """
+    patches, classes = [], []
+    for patch, class_ in extract_patches_generator(image, class_image, size,
+                                                   max_patches, class_dist):
+        patches.append(patch)
+        classes.append(class_)
 
     # Shuffle the patches.
-    shuffle_order = list(range(n))
+    shuffle_order = list(range(patches.shape[0]))
     random.shuffle(shuffle_order)
     patches_shuffled, classes_shuffled = [], []
     for i in shuffle_order:
@@ -224,8 +249,8 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
         classes_shuffled.append(classes[i])
     # In the following lines, since we may have extracted too many patches,
     # we take only the first n.
-    patches_shuffled = np.stack(patches_shuffled, axis=0)[:n, ...]
-    classes_shuffled = np.stack(classes_shuffled, axis=0)[:n, ...]
+    patches_shuffled = np.stack(patches_shuffled, axis=0)[:max_patches, ...]
+    classes_shuffled = np.stack(classes_shuffled, axis=0)[:max_patches, ...]
     return patches_shuffled, classes_shuffled
 
 def variance_of_variance_curve(images, min_size, max_size, num_sizes, samples):
