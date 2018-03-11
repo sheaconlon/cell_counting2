@@ -141,6 +141,7 @@ if __name__ == "__main__":
     # ============================
     MAX_PATCHES = 3_000 # used to be 10_000
     SEGMENT_SIZE = 10 # used to be 1_000
+    PATCH_SAVE_PATH = "easy-{0:d}".format(version)
 
     with tqdm.tqdm(desc="extract patches/classes from images/masks") as \
             progress_bar:
