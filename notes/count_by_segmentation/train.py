@@ -18,7 +18,7 @@ sys.path.insert(0, root_relative_path)
 # ==========================
 # Import from cell_counting.
 # ==========================
-from src import dataset, metric, utilities, losses, visualization
+from cell_counting import dataset, metric, utilities, losses, visualization
 from models.segmentation.convnet1 import convnet1
 
 # ===============================

@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from src import neural_net
-from src import losses
+from cell_counting import neural_net
+from cell_counting import losses
 
 class ConvNet1(neural_net.NeuralNet):
 	"""A convolutional neural net for the segmentation of cell colonies in
