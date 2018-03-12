@@ -141,7 +141,7 @@ if __name__ == "__main__":
     # Extract patches and classes.
     # ============================
     MAX_PATCHES = 1_000_000
-    SEGMENT_SIZE = 1_000
+    SEGMENT_SIZE = 10_000
     PATCH_SAVE_PATH = "easy-{0:d}-patches".format(version)
 
     with tqdm.tqdm(desc="extract patches/classes from images/masks",
