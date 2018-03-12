@@ -105,7 +105,8 @@ class BaseModel(object):
 			inputs = tf.cast(features["inputs"], dtype=tf.float32)
 			if labels is not None:
 				outputs = tf.cast(labels, dtype=tf.float32)
-			predicted_outputs = self._tensor_predict(inputs)
+			regularize = (mode == tf.estimator.ModeKeys.TRAIN)
+			predicted_outputs = self._tensor_predict(inputs, regularize)
 			if mode == tf.estimator.ModeKeys.PREDICT:
 			    return tf.estimator.EstimatorSpec(mode=mode, 
 			    	predictions=predicted_outputs)
@@ -117,7 +118,7 @@ class BaseModel(object):
 				train_op=train_op)
 		return model_fn
 
-	def _tensor_predict(self, inputs):
+	def _tensor_predict(self, inputs, regularize):
 		raise NotImplementedError
 
 	def get_batch_size(self):

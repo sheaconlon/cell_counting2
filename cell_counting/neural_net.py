@@ -22,12 +22,12 @@ class NeuralNet(model.BaseModel):
 			optimizer_factory)
 		self._layers = layers
 
-	def _tensor_predict(self, inputs):
+	def _tensor_predict(self, inputs, regularize):
 		with tf.Session().as_default():
 			result = inputs
 			# result = tf.Print(result, [result, tf.reduce_mean(result)], summarize=20)
 			for layer in self._layers:
-				result = layer.output(result)
+				result = layer.output(result, regularize)
 				# result = tf.Print(result, [result, tf.reduce_mean(result)], summarize=20)
 			return result
 
@@ -58,12 +58,14 @@ class BaseLayer(object):
 		return self._type
 
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -131,12 +133,14 @@ class ConvolutionalLayer(BaseLayer):
 		self._bias_reg = bias_reg
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -191,12 +195,14 @@ class LocalResponseNormalizationLayer(BaseLayer):
 		self._beta = beta
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -228,13 +234,15 @@ class BatchNormalizationLayer(BaseLayer):
 		self._axis = axis
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must
 				have shape `[n_batches, height, width, channels]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -275,12 +283,14 @@ class PoolingLayer(BaseLayer):
 		self._padding_method = padding_method
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -323,12 +333,14 @@ class TransferLayer(BaseLayer):
 		self._transfer_fn = transfer_fn
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -353,12 +365,14 @@ class FlatLayer(BaseLayer):
 		super().__init__(FlatLayer.TYPE)
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, height, width, channels]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -411,12 +425,14 @@ class FullLayer(BaseLayer):
 		self._bias_reg = bias_reg
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, size]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
@@ -464,17 +480,21 @@ class DropoutLayer(BaseLayer):
 		self._seed = seed
 		self._name = name
 
-	def output(self, previous):
+	def output(self, previous, regularize):
 		"""
 		Get the output of this layer.
 
 		Args:
 			previous (tf.Tensor): The output of the layer before this one. Must have shape `[n_batches, size]`.
+			regularize (bool): Whether regularization techniques that reduce
+				prediction accuracy should be applied.
 
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
 		super().output(previous)
+		if not regularize:
+			return previous
 		return tf.nn.dropout(
 			previous,
 			keep_prob = self._keep_prob,
