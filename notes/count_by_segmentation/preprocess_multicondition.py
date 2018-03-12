@@ -124,7 +124,7 @@ if __name__ == "__main__":
     # ============================
     # Resize the images and masks.
     # ============================
-    ACTUAL_COLONY_DIAM = 55
+    ACTUAL_COLONY_DIAM = 57
     TARGET_COLONY_DIAM = 61
     RESIZE_INTERP_TYPE = "bicubic"
 
