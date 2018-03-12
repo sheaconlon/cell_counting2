@@ -80,9 +80,9 @@ if __name__ == "__main__":
         easy = dataset.Dataset(SAVE_PATH, 1)
         easy.initialize_from_aspects(EASY_PATH, transform_aspects)
 
-    # =======================
-    # Make "originals" plots.
-    # =======================
+    # ===================================
+    # Make "images", and "*_masks" plots.
+    # ===================================
     ORIGINALS_NUM_IMAGES = 2
     ORIGINALS_GRID_COLUMNS = 2
     ORIGINALS_IMAGE_SIZE = (4, 4)
