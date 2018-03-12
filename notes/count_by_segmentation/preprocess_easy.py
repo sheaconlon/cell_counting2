@@ -1,4 +1,4 @@
-"""Preprocesses the easy dataset.
+"""Preprocesses the ``easy`` dataset.
 
 Does the following:
 1. Resizes the images.
@@ -8,15 +8,15 @@ Does the following:
 5. One-hot encodes the classes.
 
 Produces the following plots:
-1. originals_images.svg
-2. originals_inside_masks.svg
-3. originals_edge_masks.svg
-4. originals_outside_masks.svg
-5. patches.svg
+1. easy_images.svg
+2. easy_inside_masks.svg
+3. easy_edge_masks.svg
+4. easy_outside_masks.svg
+5. easy_patches.svg
 
-Saves the resulting `Dataset`s to disk.
+Saves the resulting `Dataset`s as well.
 
-Run ``python preprocess.py -h`` to see usage details.
+Run ``python preprocess_easy.py -h`` to see usage details.
 """
 
 # ========================================
@@ -30,7 +30,7 @@ sys.path.insert(0, root_relative_path)
 # ==========================
 # Import from cell_counting.
 # ==========================
-from src import dataset, preprocess, visualization
+from cell_counting import dataset, preprocess, visualization
 
 # ===============================
 # Import from the Python library.
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # ===============================
     parser = argparse.ArgumentParser(description='Preprocess the easy dataset.')
     parser.add_argument('-v', metavar='version', type=int, nargs=1,
-                        help='a version number to save datasets with',
+                        help='a version number for the saved datasets',
                         default=1, required=False)
     args = parser.parse_args()
     version = args.v[0]
@@ -58,14 +58,14 @@ if __name__ == "__main__":
     # ======================
     # Make figure directory.
     # ======================
-    FIGURE_BASE_PATH = "figures-{0:d}".format(version)
+    FIGURE_BASE_PATH = "easy-{0:d}-figures".format(version)
 
     os.makedirs(FIGURE_BASE_PATH, exist_ok=True)
 
     # =================
     # Load the dataset.
     # =================
-    SAVE_PATH = "easy-{0:d}-whole".format(version)
+    SAVE_PATH = "easy-{0:d}-whole-images".format(version)
     EASY_PATH = "../../data/easy/data"
 
     with tqdm.tqdm(desc="load images/masks") as progress_bar:
@@ -92,19 +92,19 @@ if __name__ == "__main__":
     visualization.plot_images(images / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Plate Images",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "originals_images.svg"))
+                                                "easy_images.svg"))
     visualization.plot_images(masks[..., 0] / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Inside Masks",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "originals_inside_masks.svg"))
+                                                "easy_inside_masks.svg"))
     visualization.plot_images(masks[..., 1] / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Edge Masks",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "originals_edge_masks.svg"))
+                                                "easy_edge_masks.svg"))
     visualization.plot_images(masks[..., 2] / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Outside Masks",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "originals_outside_masks.svg"))
+                                                "easy_outside_masks.svg"))
 
     # ============================
     # Resize the images and masks.
@@ -114,7 +114,8 @@ if __name__ == "__main__":
     RESIZE_INTERP_TYPE = "bicubic"
 
     resize_factor = TARGET_COLONY_DIAM / ACTUAL_COLONY_DIAM
-    with tqdm.tqdm(desc="resize images/masks") as progress_bar:
+    with tqdm.tqdm(desc="resize images/masks", total=easy.size())\
+            as progress_bar:
         def resize_example(example):
             image, mask = example
             target_dims = tuple(round(dim*resize_factor) for dim in
@@ -128,7 +129,7 @@ if __name__ == "__main__":
     # =====================
     # Normalize the images.
     # =====================
-    with tqdm.tqdm(desc="normalize images") as progress_bar:
+    with tqdm.tqdm(desc="normalize images", total=easy.size()) as progress_bar:
         def normalize_examples(examples):
             images, masks = examples
             images = preprocess.divide_median_normalize(images)
@@ -139,12 +140,12 @@ if __name__ == "__main__":
     # ============================
     # Extract patches and classes.
     # ============================
-    MAX_PATCHES = 1_000_000
-    SEGMENT_SIZE = 5_000
-    PATCH_SAVE_PATH = "easy-{0:d}".format(version)
+    MAX_PATCHES = 10_000 # 1_000_000
+    SEGMENT_SIZE = 100 # 1_000
+    PATCH_SAVE_PATH = "easy-{0:d}-patches".format(version)
 
-    with tqdm.tqdm(desc="extract patches/classes from images/masks") as \
-            progress_bar:
+    with tqdm.tqdm(desc="extract patches/classes from images/masks",
+                   total=easy.size()) as progress_bar:
         def extract_patches(image, mask):
             class_image = np.argmin(mask, axis=2)
             yield from preprocess.extract_patches_generator(image,
@@ -166,12 +167,12 @@ if __name__ == "__main__":
     visualization.plot_images(images, PATCHES_GRID_COLUMNS, PATCHES_IMAGE_SIZE,
                               "Patches", subtitles=subtitles,
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "patches.svg"))
+                                                "easy_patches.svg"))
 
     # ======================
     # Normalize the patches.
     # ======================
-    with tqdm.tqdm(desc="normalize patches") as progress_bar:
+    with tqdm.tqdm(desc="normalize patches", total=easy.size()) as progress_bar:
         def normalize_examples(examples):
             images, classes = examples
             images = preprocess.subtract_mean_normalize(images)
@@ -184,7 +185,8 @@ if __name__ == "__main__":
     # ===========================
     NUM_CLASSES = 3
 
-    with tqdm.tqdm(desc="one-hot encode classes") as progress_bar:
+    with tqdm.tqdm(desc="one-hot encode classes", total=easy.size())\
+            as progress_bar:
         def one_hot_encode_examples(examples):
             images, classes = examples
             one_hot_classes = np.zeros((classes.shape[0], NUM_CLASSES))
@@ -197,9 +199,9 @@ if __name__ == "__main__":
     # Split the dataset into training and test sets.
     # ==============================================
     TEST_P = 0.1
-    TRAIN_SAVE_PATH = "easy-{0:d}-train".format(version)
-    TEST_SAVE_PATH = "easy-{0:d}-test".format(version)
+    TRAIN_SAVE_PATH = "easy-{0:d}-patches-train".format(version)
+    TEST_SAVE_PATH = "easy-{0:d}-patches-test".format(version)
 
-    with tqdm.tqdm(desc="split dataset") as progress_bar:
+    with tqdm.tqdm(desc="split dataset", total=1) as progress_bar:
         easy.split(TEST_P, TRAIN_SAVE_PATH, TEST_SAVE_PATH)
         progress_bar.update(1)
