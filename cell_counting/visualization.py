@@ -64,7 +64,7 @@ def plot_images(images, cols, dims, title, subtitles=None, path=None):
         plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
-def plot_confusion_matrix(mtx, title, height, width):
+def plot_confusion_matrix(mtx, title, height, width, path=None):
     """Plot a confusion matrix.
 
     Args:
@@ -72,6 +72,8 @@ def plot_confusion_matrix(mtx, title, height, width):
         title (str): A title for the plot.
         height (int): The height of the plot, in inches.
         width (int): The width of the plot, in inches.
+        path (str): The path to save the plot to. If ``None`` or omitted, the
+            plot is shown.
     """
     num_classes = mtx.shape[0]
     plt.close()
@@ -89,7 +91,10 @@ def plot_confusion_matrix(mtx, title, height, width):
     plt.tight_layout()
     plt.ylabel('Predicted label')
     plt.xlabel('True label')
-    plt.show()
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
 def plot_line(xs, ys, title, x_label, y_label, height, width, path=None):
