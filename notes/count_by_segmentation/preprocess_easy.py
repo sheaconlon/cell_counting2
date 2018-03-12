@@ -8,11 +8,11 @@ Does the following:
 5. One-hot encodes the classes.
 
 Produces the following plots:
-1. easy_images.svg
-2. easy_inside_masks.svg
-3. easy_edge_masks.svg
-4. easy_outside_masks.svg
-5. easy_patches.svg
+1. images.svg
+2. inside_masks.svg
+3. edge_masks.svg
+4. outside_masks.svg
+5. patches.svg
 
 Saves the resulting `Dataset`s as well.
 
@@ -92,19 +92,19 @@ if __name__ == "__main__":
     visualization.plot_images(images / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Plate Images",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "easy_images.svg"))
+                                                "images.svg"))
     visualization.plot_images(masks[..., 0] / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Inside Masks",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "easy_inside_masks.svg"))
+                                                "inside_masks.svg"))
     visualization.plot_images(masks[..., 1] / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Edge Masks",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "easy_edge_masks.svg"))
+                                                "edge_masks.svg"))
     visualization.plot_images(masks[..., 2] / RGB_MAX, ORIGINALS_GRID_COLUMNS,
                               ORIGINALS_IMAGE_SIZE, "Outside Masks",
                               path=os.path.join(FIGURE_BASE_PATH,
-                                                "easy_outside_masks.svg"))
+                                                "outside_masks.svg"))
 
     # ============================
     # Resize the images and masks.
