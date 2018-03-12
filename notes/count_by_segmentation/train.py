@@ -85,7 +85,7 @@ if __name__ == "__main__":
     # Create the metrics.
     # ===================
     METRIC_SAVE_PATH = "model-{0:d}-metric-saves".format(version)
-    NUM_EXAMPLES = 1_000 # 4_000
+    NUM_EXAMPLES = 4_000
     NUM_CLASSES = 3
 
     with tqdm.tqdm(desc="get data for metrics") as progress_bar:
@@ -114,8 +114,8 @@ if __name__ == "__main__":
     # ======================================================================
     # Train the model, periodically evaluating and plotting the metrics.
     # ======================================================================
-    TRAIN_LENGTH = 5 # 240
-    METRIC_INTERVAL = 1 # 6
+    TRAIN_LENGTH = 240
+    METRIC_INTERVAL = 6
     SECS_PER_MIN = 60
 
     def save_model():
