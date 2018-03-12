@@ -1,64 +1,73 @@
 from . import visualization
 
-import time
+import time, os
 
 import tensorflow as tf
 import numpy as np
 
 
 class BaseMetric(object):
-    """A metric."""
+    """A metric.
 
-    def __init__(self):
-        """Create a metric."""
-        self._examples_seen = []
-        self._results = []
+    A metric remembers its past evaluations by saving them to disk.
+    """
 
-    def evaluate(self, model):
-        """Evaluate a model. Also records the result.
+    def __init__(self, save_path):
+        """Create a metric.
 
         Args:
-            model (model.BaseModel): The model.
-
-        Returns:
-            (tf.Tensor) The value of this metric for the model.
+            save_path (str): A path to a directory in which to save this metric.
+            figure_path (str): A path to a directory in which to save plots.
         """
+        self._save_path = save_path
+        self._init_save_dir()
+
+    def evaluate(self, model):
+        """Evaluate this metric of a model and save the result."""
         raise NotImplementedError
 
-    def get_results(self):
-        """Get the results for this metric from all past evaluations.
+    def _init_save_dir(self):
+        os.makedirs(self._save_path, exist_ok=True)
+        if os.path.exists(self._save_file_path("save_exists")):
+            return
+        self._write_save_file("save_exists", True)
 
-        Returns:
-            (tuple of lists): In the first list, the i-th element is the number
-                of examples seen at the i-th evaluation. In the second
-                list, the i-th element is the value of this metric during the
-                i-th evaluation.
-        """
-        return self._examples_seen, self._results
+    def _save_file_path(self, basename):
+        return os.path.join(self._save_path, basename + ".npy")
 
-    def _record(self, model, result):
-        self._examples_seen.append(
-            model.get_global_step() * model.get_batch_size())
-        self._results.append(result)
+    def _write_save_file(self, basename, data):
+        path = os.path.join(self._save_path, basename + ".npy")
+        np.save(path, data)
+
+    def _read_save_file(self, basename):
+        path = os.path.join(self._save_path, basename + ".npy")
+        try:
+            return np.load(path)
+        except IOError:
+            return None
 
 
 class ConfusionMatrixMetric(BaseMetric):
     """A confusion matrix metric."""
 
-    def __init__(self, batch, num_classes):
+    def __init__(self, save_path, data, num_classes):
         """Create a confusion matrix metric.
 
         Args:
-            batch (tuple of np.ndarray): A batch of input and output data to
+            save_path (str): See ``BaseMetric``.
+            data (tuple of np.ndarray): A tuple of input data and output data to
                 test models with.
             num_classes (int): The number of classes.
         """
-        super().__init__()
-        self._batch = batch
+        super().__init__(save_path)
+        self._data = data
         self._num_classes = num_classes
+        self._confusion_matrices = np.zeros((1, num_classes, num_classes),
+                                            dtype=int)
+        self._save()
 
     def evaluate(self, model):
-        """Calculate the confusion matrix of a model. Also records the result.
+        """Evaluate the confusion matrix of a model and save the result.
 
         Args:
             model (model.BaseModel): The model. Must be a classifier, whose
@@ -69,7 +78,7 @@ class ConfusionMatrixMetric(BaseMetric):
                 (i, j) is the number of times that the model predicted class
                 i when the true class was class j.
         """
-        inputs, outputs = self._batch
+        inputs, outputs = self._data
         pred_outputs = model.predict(inputs)
         outputs = np.argmax(outputs, axis=1)
         pred_outputs = np.argmax(pred_outputs, axis=1)
@@ -80,13 +89,18 @@ class ConfusionMatrixMetric(BaseMetric):
                 num_classes=self._num_classes
             ).eval()
         conf_mtx = np.transpose(conf_mtx)
-        self._record(model, conf_mtx)
+        self._confusion_matrices = np.concatenate(
+            (self._confusion_matrices, conf_mtx[np.newaxis, ...]), axis=0)
+        self._save()
         return conf_mtx
 
-    def plot(self, title, height, width):
+    def plot(self, title, height, width, path=None):
         """Plot this metric."""
-        examples_seen, conf_mtxs = self.get_results()
-        visualization.plot_confusion_matrix(conf_mtxs[-1], title, height, width)
+        visualization.plot_confusion_matrix(self._confusion_matrices[-1, ...],
+                                            title, height, width, path=path)
+
+    def _save(self):
+        self._write_save_file("confusion_matrices", self._confusion_matrices)
 
 
 class NonexclusiveConfusionMatrixMetric(ConfusionMatrixMetric):
@@ -142,23 +156,26 @@ class NonexclusiveConfusionMatrixMetric(ConfusionMatrixMetric):
 class LossMetric(BaseMetric):
     """A loss metric."""
 
-    def __init__(self, batch, loss_fn):
+    def __init__(self, save_path, data, loss_fn):
         """Create a loss metric.
 
         Args:
-            batch (tuple of np.ndarray): A batch of input and output data to
+            save_path (str): See ``BaseMetric``.
+            data (tuple of np.ndarray): A tuple of input data and output data to
                 test models with.
             loss_fn (func(np.ndarray, np.ndarray) -> float): A function
                 that receives as arguments a batch of predicted outputs and
                 correct outputs and returns a scalar representing the loss for
                 this batch.
         """
-        super().__init__()
-        self._batch = batch
+        super().__init__(save_path)
+        self._data = data
         self._loss_fn = loss_fn
+        self._training_iterations = np.array([0])
+        self._losses = np.array([float("inf")])
 
     def evaluate(self, model):
-        """Calculate the loss of a model. Also records the result.
+        """Evaluate the loss of a model and save the result.
 
         Args:
             model (model.BaseModel): The model.
@@ -166,17 +183,25 @@ class LossMetric(BaseMetric):
         Returns:
             (float) The loss.
         """
-        inputs, outputs = self._batch
+        inputs, outputs = self._data
         pred_outputs = model.predict(inputs)
         loss = self._loss_fn(outputs, pred_outputs)
-        self._record(model, loss)
+        training_iteration = model.get_global_step() * model.get_batch_size()
+        self._training_iterations = np.concatenate((self._training_iterations,
+        	np.array([training_iteration])), axis=0)
+        self._losses = np.concatenate((self._losses, loss[np.newaxis,...]),
+                                      axis=0)
+       	self._save()
         return loss
 
     def plot(self, title, x_lab, y_lab, height, width, path=None):
         """Plot this metric."""
-        examples_seen, losses = self.get_results()
-        visualization.plot_line(examples_seen, losses, title, x_lab, y_lab,
-                                height, width, path)
+        visualization.plot_line(self._training_iterations, self._losses, title,
+        						x_lab, y_lab, height, width, path=path)
+
+    def _save(self):
+        self._write_save_file("training_iterations", self._training_iterations)
+        self._write_save_file("losses", self._losses)
 
 
 class OffByCountMetric(BaseMetric):
