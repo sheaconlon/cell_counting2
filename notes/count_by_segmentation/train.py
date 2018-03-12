@@ -26,7 +26,11 @@ from models.segmentation.convnet1 import convnet1
 # ===============================
 import argparse
 
+# =================================
+# Import from third-party packages.
+# =================================
 import tqdm
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Prevent TensorFlow's logging to console.
 
 if __name__ == "__main__":
     # ===============================
@@ -63,7 +67,7 @@ if __name__ == "__main__":
     # =====================
     # Initialize the model.
     # =====================
-    SAVE_INTERVAL = 5
+    SAVE_INTERVAL = 10
 
     with tqdm.tqdm(desc="initialize model") as progress_bar:
         model = convnet1.ConvNet1("segmentation-convnet1-{0:d}".format(
@@ -73,7 +77,7 @@ if __name__ == "__main__":
     # ===================
     # Create the metrics.
     # ===================
-    NUM_EXAMPLES = 1_00 # used to be 1_000
+    NUM_EXAMPLES = 4_000
     NUM_CLASSES = 3
 
     with tqdm.tqdm(desc="get data for metrics") as progress_bar:
@@ -92,8 +96,8 @@ if __name__ == "__main__":
     # =====================================================
     # Train the model, periodically evaluating the metrics.
     # =====================================================
-    TRAIN_LENGTH = 5 # used to be 20
-    METRIC_INTERVAL = 1 # used to be 4
+    TRAIN_LENGTH = 240
+    METRIC_INTERVAL = 6
     SECS_PER_MIN = 60
 
     for _ in tqdm.tqdm(range(TRAIN_LENGTH // METRIC_INTERVAL),

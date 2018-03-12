@@ -7,8 +7,8 @@ class BaseModel(object):
 	"""A model."""
 
 	_CHKPT_MAX = 2
-	_LOG_STEPS = 100
-	_TRAIN_STEPS = 10
+	_LOG_STEPS = 250
+	_TRAIN_STEPS = 25
 	_SECS_PER_MIN = 60
 
 	def __init__(self, save_dir, chkpt_save_interval, loss_fn,
