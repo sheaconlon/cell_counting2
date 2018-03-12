@@ -1,4 +1,5 @@
 import time
+
 import tensorflow as tf
 
 def print_time(fn, name):

@@ -1,8 +1,8 @@
+from . import visualization
+
 import numpy as np
 from scipy import ndimage
 from skimage import feature, morphology
-
-from . import visualization
 
 def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
                   min_diam, sampling_interval=1, debug=False):

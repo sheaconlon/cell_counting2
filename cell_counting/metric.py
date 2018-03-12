@@ -1,5 +1,7 @@
-import itertools, time
 from . import visualization
+
+import time
+
 import tensorflow as tf
 import numpy as np
 

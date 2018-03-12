@@ -1,17 +1,11 @@
+from concurrent import futures
+import random, json, os, tempfile, shutil
+
 from scipy import ndimage
 import numpy as np
-import tempfile
-import openpyxl
-import os
-from scipy import misc
-import random
-import json
-import shutil
-
 import tensorflow as tf
-from sklearn.feature_extraction import image
-
-from concurrent import futures
+from scipy import misc
+import openpyxl
 
 class Dataset(object):
     """A dataset consisting of some examples of input/output pairs. Minimizes
