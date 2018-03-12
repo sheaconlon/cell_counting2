@@ -145,7 +145,7 @@ class ConvolutionalLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		return tf.layers.conv2d(
 			previous,
 			self._n_filters,
@@ -207,7 +207,7 @@ class LocalResponseNormalizationLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		pooling_fn = None
 		return tf.nn.local_response_normalization(
 			previous,
@@ -247,7 +247,7 @@ class BatchNormalizationLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		return tf.layers.batch_normalization(previous, axis=self._axis,
 			name=self._name)
 
@@ -295,7 +295,7 @@ class PoolingLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		pooling_fn = None
 		if self._pooling_type == "MAX":
 			pooling_fn = tf.layers.max_pooling2d
@@ -345,7 +345,7 @@ class TransferLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		return self._transfer_fn(previous, self._name)
 
 class FlatLayer(BaseLayer):
@@ -377,7 +377,7 @@ class FlatLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		return tf.contrib.layers.flatten(previous, outputs_collections=None, scope=None)
 
 class FullLayer(BaseLayer):
@@ -437,7 +437,7 @@ class FullLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		return tf.layers.dense(
 			previous,
 			self._size,
@@ -492,7 +492,7 @@ class DropoutLayer(BaseLayer):
 		Returns:
 			A `tf.Tensor` representing the output of this layer.
 		"""
-		super().output(previous)
+		super().output(previous, regularize)
 		if not regularize:
 			return previous
 		return tf.nn.dropout(
