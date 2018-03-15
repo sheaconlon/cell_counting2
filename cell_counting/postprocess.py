@@ -6,11 +6,14 @@ from skimage import feature, morphology
 
 def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
                   min_diam, sampling_interval=1, debug=False):
-    """Count the number of regions in an image. Uses a classifier that can, for
-        any given pixel of the image, give the probabilities of that pixel being
-        inside a region, on the edge of a region, and outside all regions.
+    """Count the number of regions in an image.
 
-    Treats the edges of the image accoring to the "valid" strategy.
+    Uses a classifier that can, for any given pixel of the image, give the
+        probabilities of that pixel being inside a region, on the edge of a
+        region, and outside all regions. Treats the edges of the image
+        accoring to the "valid" strategy. Note that the patches will not be
+        shuffled and will therefore exhibit spatial correlation.
+
 
     Args:
         image (np.ndarray): The image. Must have shape (height, width,
