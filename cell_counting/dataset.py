@@ -15,8 +15,6 @@ class Dataset(object):
         then these examples will be ignored.
     """
 
-    SEGMENT_POOL_MULTIPLIER = 5
-
     def __init__(self, path, segment_size=None):
         """Create a dataset.
 
@@ -278,13 +276,13 @@ class Dataset(object):
     def split(self, p, path_larger, path_smaller):
         """Split this dataset.
 
-        Note: Will assign entire segments to one part of the split or the other.
-            Result may not approximate p well if there aren't many segments.
-            If the number of segments is very small, there is the possibility
-            for errors.
+        The larger dataset will be given a segment size that is ``1 - p`` times
+        this dataset's segment size, and likewise with ``p`` for the smaller
+        dataset. Chooses the examples to allocate to each side of the split
+        at random.
 
         Args:
-            p (float): The proportion of the dataset to put in the smaller part
+            p (float): The proportion of the examples to put in the smaller part
                 of the split.
             path_larger (str): The path to a directory in which to store the
                 larger part of the split.
@@ -292,24 +290,37 @@ class Dataset(object):
                 smaller part of the split.
 
         Returns:
-            (tuple of dataset.Dataset): The two datasets that result from the
-                split. The smaller one is last.
+            tuple(dataset.Dataset, dataset.Dataset): The two datasets that
+            result from the split. The smaller one is last.
         """
-        smaller = Dataset(path_smaller, int(self._segment_size))
-        larger = Dataset(path_larger, int(self._segment_size))
-        smaller_limit = int(p * self._segments)
-        for i in range(smaller_limit):
-            src = self._get_segment_path(i)
-            dst = smaller._get_segment_path(i)
-            shutil.copytree(src, dst)
-        smaller._segments = smaller_limit
-        smaller._save_metadata()
-        for i in range(smaller_limit, self._segments):
-            src = self._get_segment_path(i)
-            dst = larger._get_segment_path(i - smaller_limit)
-            shutil.copytree(src, dst)
-        larger._segments = self._segments - smaller_limit
-        larger._save_metadata()
+        larger = Dataset(path_larger, round(self._segment_size * (1 - p)))
+        smaller = Dataset(path_smaller, round(self._segment_size * p))
+
+        def example_generator(include_example):
+            for segment in range(self._segments):
+                inputs_path = self._get_segment_file_path(segment, "inputs.npy")
+                outputs_path = self._get_segment_file_path(segment,
+                                                           "outputs.npy")
+                inputs = np.load(inputs_path)
+                outputs = np.load(outputs_path)
+                for i in range(inputs.shape[0]):
+                    if include_example(i):
+                        yield (inputs[i, ...], outputs[i, ...])
+
+        num_examples = self._segments * self._segment_size
+        num_examples_smaller = round(num_examples * p)
+        chosen_for_smaller = set(random.sample(range(num_examples),
+                                               num_examples_smaller))
+
+        def include_example_larger(i):
+            return i not in chosen_for_smaller
+
+        larger._load_examples(example_generator(include_example_larger))
+
+        def include_example_smaller(i):
+            return i in chosen_for_smaller
+
+        smaller._load_examples(example_generator(include_example_smaller))
         return larger, smaller
 
     def map(self, fn):
@@ -432,19 +443,28 @@ class Dataset(object):
         self._segments = scratch_dataset._segments
         self._save_metadata()
 
-    def get_batch(self, size):
-        """Get a batch of examples.
+    def get_batch(self, size, pool_multiplier=5):
+        """Get a batch of examples, randomly selected from a pool.
 
         Args:
             size (int): The number of examples.
+            pool_multiplier (int): If ``n`` segments are needed to get ``size``
+                examples, then the examples will be drawn at random from
+                ``pool_multiplier * n`` segments. This result is then capped
+                at the number of segments that exist. The default is ``5``.
 
         Returns:
-            (tuple of np.ndarray): The inputs and outputs of the batch. Each
-                array has size rows, where the i-th row corresponds to the i-th
-                example.
+            tuple(numpy.ndarray, numpy.ndarray): The inputs and outputs of
+            the batch. Each array has ``size`` rows, where the ``i``-th row
+            corresponds to the ``i``-th example.
         """
+        assert isinstance(pool_multiplier, int), "argument pool_multiplier " \
+                                                 "must be an int"
+        assert pool_multiplier >= 1, "argument pool_multiplier must be at " \
+                                     "least 1"
+
         segments_needed = (int(size / self._segment_size) + 1)
-        segments_needed *= self.SEGMENT_POOL_MULTIPLIER
+        segments_needed *= pool_multiplier
         segments_needed = min(segments_needed, self._segments)
         chosen_segments = random.sample(range(self._segments), segments_needed)
         cache = []
@@ -503,11 +523,12 @@ class Dataset(object):
             batch_size, num_batches, shuffle=False,
             queue_capacity=num_batches)
 
-    def close(self):
-        """Close this dataset. This dataset will not be useable afterward.
+    def delete(self):
+        """Delete this dataset.
 
-        This method must be called because it deletes temporary files on disk.
-        """
+        Deletes this dataset's directory on disk. This will cause any files
+        in that directory, even those not created by this dataset,
+        to be deleted. This dataset will not be usable afterward."""
         shutil.rmtree(self._path)
         self._path = None
 
