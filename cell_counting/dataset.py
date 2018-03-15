@@ -1,5 +1,5 @@
 from concurrent import futures
-import random, json, os, tempfile, shutil
+import random, json, os, tempfile, shutil, importlib.util
 
 from scipy import ndimage
 import numpy as np
@@ -38,6 +38,19 @@ class Dataset(object):
             self._segment_size = segment_size
             self._segments = 0
             self._save_metadata()
+
+    def load(self, loader_path):
+        """Load examples using a loader.
+
+        Args:
+            loader_path (str): A path to a file that defines a function named
+                ``load``. This function must yield the examples of the
+                dataset.
+        """
+        spec = importlib.util.spec_from_file_location("loader", loader_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self._load_examples(module.load())
 
     def initialize_from_aspects(self, path, transform):
         """Initialize by reading some examples' aspects and generating inputs
@@ -453,6 +466,24 @@ class Dataset(object):
         inputs = np.stack(inputs, axis=0)
         outputs = np.stack(outputs, axis=0)
         return inputs, outputs
+
+    def get_all(self):
+        """Get all examples in the dataset.
+
+        Returns:
+            (tuple(numpy.ndarray, numpy.ndarray)): A tuple of two
+                elements: the inputs of all the examples and the outputs of
+                all the examples. These will have shape (num_examples, ...).
+        """
+        inputs, outputs = [], []
+        for i in range(self._segments):
+            inp, out = self._load_segment(i)
+            inputs.append(inp)
+            outputs.append(out)
+        inputs, outputs = np.stack(inputs, axis=0), np.stack(outputs, axis=0)
+        assert inputs.shape[0] == outputs.shape[0], "Something is wrong!" \
+            "There are not equal numbers of inputs and outputs in this dataset."
+        return (inputs, outputs)
 
     def get_data_fn(self, batch_size, num_batches):
         """Get a data function for this dataset.
