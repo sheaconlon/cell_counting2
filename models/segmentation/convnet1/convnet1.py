@@ -9,6 +9,9 @@ class ConvNet1(neural_net.NeuralNet):
 		of bacterial cell cytoplasm in microscopy images in Valen et al. Images
 		must have shape (61, 61, n_channels)."""
 
+	# The expected size of the patches that this model takes as input.
+	PATCH_SIZE = 61
+
 	def __init__(self, save_dir, chkpt_save_interval, num_samples):
 		"""Create a conv-net-1 model.
 
