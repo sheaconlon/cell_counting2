@@ -1,4 +1,4 @@
-import math, random
+import math, random, multiprocessing
 
 import tensorflow as tf
 import numpy as np
@@ -253,35 +253,69 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
     classes_shuffled = np.stack(classes_shuffled, axis=0)[:max_patches, ...]
     return patches_shuffled, classes_shuffled
 
-def variance_of_variance_curve(images, min_size, max_size, num_sizes, samples):
-    """Calculate the variance of variance curve of some images.
 
-    The variance of variance curve is a mapping from patch size to the variance
-        of the variances of the patches of that size. Variances are taken
-        over all the positions and all the channels of a patch. Patch sizes are
-        logarithmically spaced in the range [min_size, max_size]. min_size and
+def _var_of_vars(size, images, samples):
+    BATCH_SIZE = 1_000
+
+    num_images, height, width, num_channels = images.shape
+    size = int(size)
+    if size % 2 == 0:
+        size -= 1
+    half_size = size // 2
+    patches_per_row = width - 2*half_size
+    patches_per_image = (height - 2*half_size) * patches_per_row
+    num_patches = num_images * patches_per_image
+    chosen_patch_nums = np.random.choice(num_patches, samples)
+    batch_patch_num = 0
+    batch = np.empty((BATCH_SIZE, size, size, num_channels))
+    vars = []
+    for i, patch_num in enumerate(chosen_patch_nums):
+        image_num = patch_num // patches_per_image
+        patch_num = patch_num % patches_per_image
+        y = patch_num // patches_per_row + half_size
+        x = patch_num % patches_per_row + half_size
+        xmin, xmax = x-half_size, x+half_size
+        ymin, ymax = y-half_size, y+half_size
+        patch = images[image_num, ymin:(ymax+1), xmin:(xmax+1), :]
+        batch[batch_patch_num, :, :, :] = patch
+        batch_patch_num += 1
+        if batch_patch_num == BATCH_SIZE:
+            vars.extend(np.var(batch, axis=(1, 2, 3)))
+            batch_patch_num = 0
+    vars.extend(np.var(batch, axis=(1, 2, 3)))
+    var_of_vars = np.var(vars, ddof=1)
+    return size, float(var_of_vars)
+
+
+def patch_variability_curve(images, min_size, max_size, num_sizes, samples):
+    """Calculate the patch variability curve of some images.
+
+    The patch variability curve relates patch size to the variance of the
+        variances of the patches of that size. Variances are taken over all
+        the positions and all the channels of a patch. Patch sizes are sampled
+        logarithmically from the range [min_size, max_size]. min_size and
         max_size are included.
 
-    See extract_patches(...) for further description of patches.
+    See `extract_patches` for further information about patches.
 
     Args:
-        images (np.ndarray): The images. Must have shape (num_images, height,
-            width, num_channels).
-        min_size (int): The smallest patch size to include. Must be odd.
-        max_size (int): The largest patch size to include. Must be odd.
-        num_sizes (int): The number of patch sizes to include.
+        images (np.ndarray): The images. Must have shape ``(num_images, height,
+            width, num_channels)``.
+        min_size (int): The smallest patch size to sample. Must be odd.
+        max_size (int): The largest patch size to sample. Must be odd.
+        num_sizes (int): The number of patch sizes to sample.
         samples (int): The number of patches to sample for the variance
             calculation for each patch size.
 
     Returns:
-        (tuple): Two np.ndarrays, both of shape (num_sizes). The first array
-            contains the included patch sizes. The second array contains the
-            corresponding variances of variances.
+        tuple(numpy.ndarray, numpy.ndarray): The first array lists the
+        sampled patch sizes, in ascending order. The second array contains the
+        corresponding variances of variances. Both are of shape ``(num_sizes)``.
     """
     assert images.ndim == 4, "parameter images must have 4 dimensions"
     assert min_size >= 3, "parameter min_size must be at least 3"
     assert min_size % 2 == 1, "parameter min_size must be odd"
-    assert max_size  <= min(images.shape[1:2]), "parameter min_size must be " \
+    assert max_size  <= min(images.shape[1:2]), "parameter max_size must be " \
                                                 "smaller than images.shape[1]" \
                                                 "and images.shape[2]"
     assert min_size % 2 == 1, "parameter max_size must be odd"
@@ -290,30 +324,13 @@ def variance_of_variance_curve(images, min_size, max_size, num_sizes, samples):
     assert num_sizes >= 2, "parameter num_sizes must be >= 2"
     assert samples >= 1, "parameter samples must be >= 1"
 
-    num_images, height, width, num_channels = images.shape
-    sizes = np.empty((num_sizes))
-    var_vars = np.empty((num_sizes))
-    for i, size in enumerate(np.geomspace(min_size, max_size, num=num_sizes)):
-        size = int(size)
-        if size % 2 == 0:
-            size -= 1
-        half_size = size // 2
-        patches_per_row = width - 2*half_size
-        patches_per_image = (height - 2*half_size)  * patches_per_row
-        num_patches = num_images * patches_per_image
-        chosen_patch_nums = np.random.choice(num_patches, samples)
-        chosen_patches = np.empty((samples, size, size, 3))
-        for j, patch_num in enumerate(chosen_patch_nums):
-            image_num = patch_num // patches_per_image
-            patch_num = patch_num % patches_per_image
-            y = patch_num // patches_per_row + half_size
-            x = patch_num % patches_per_row + half_size
-            xmin, xmax = x-half_size, x+half_size
-            ymin, ymax = y-half_size, y+half_size
-            patch = images[image_num, ymin:(ymax+1), xmin:(xmax+1), :]
-            chosen_patches[j, ...] = patch
-        sizes[i] = size
-        vars = np.var(chosen_patches, axis=(1, 2, 3))
-        var_vars[i] = np.var(vars, ddof=1)
-    return sizes, var_vars
+    with multiprocessing.Pool() as pool:
+        possible_sizes = np.geomspace(min_size, max_size, num=num_sizes)
+        images_repeated = [images for _ in range(num_sizes)]
+        samples_repeated = [samples for _ in range(num_sizes)]
+        args = zip(possible_sizes, images_repeated, samples_repeated)
+        results = pool.starmap(_var_of_vars, args, chunksize=1)
+    sizes, var_of_vars = zip(*results)
+    sizes, var_of_vars = np.array(sizes), np.array(var_of_vars)
+    return sizes, var_of_vars
 
