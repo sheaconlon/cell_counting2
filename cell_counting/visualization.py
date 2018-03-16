@@ -124,7 +124,7 @@ def plot_line(xs, ys, title, x_label, y_label, height, width, path=None):
     plt.close()
 
 def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
-        width):
+        width, path=None):
     """Plot some lines.
 
     Args:
@@ -137,6 +137,8 @@ def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
         line_labels (list of str): The labels for the lines.
         height (int): The height of the plot, in inches.
         width (int): The width of the plot, in inches.
+        path (str): The path to save the plot to. If ``None`` or omitted, the
+            plot is shown.
     """
     plt.close()
     fig = plt.figure(figsize=(width, height), dpi=PLT_DPI)
@@ -150,7 +152,10 @@ def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
         elif i >= 7:
             color = (0, (i-7)/7, 0)
         plt.plot(xs, ys, label=line_label, color=color, linewidth=0.5)
-    plt.show()
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
 def plot_scatter(xs, ys, title, x_label, y_label, height, width):
