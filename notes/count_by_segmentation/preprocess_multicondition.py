@@ -5,11 +5,11 @@ Does the following:
 2. Normalizes the images.
 
 Produces the following plots:
-1. plate_1.svg
-1. plate_2.svg
-1. plate_3.svg
+1. plate_*.svg
+2. plate_*_resized.svg
+3. plate_*_normalized.svg
 
-Saves the resulting `Dataset`s as well.
+Saves the resulting `Dataset`s.
 
 Run ``python preprocess_multicondition.py -h`` to see usage details.
 """
@@ -19,13 +19,14 @@ Run ``python preprocess_multicondition.py -h`` to see usage details.
 # ========================================
 import sys, os
 
-root_relative_path = os.path.join(os.path.dirname(__file__), '..', '..')
-sys.path.insert(0, root_relative_path)
+repo_path = os.path.join(os.path.dirname(__file__), '..', '..')
+sys.path.insert(0, repo_path)
 
 # ==========================
 # Import from cell_counting.
 # ==========================
 from cell_counting import dataset, preprocess, visualization
+from models.segmentation.convnet1 import convnet1
 
 # ===============================
 # Import from the Python library.
@@ -36,123 +37,114 @@ import argparse
 # Import from other packages.
 # ===========================
 import numpy as np
-from scipy import misc
+from skimage import transform
 import tqdm
 
 if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
-    parser = argparse.ArgumentParser(description='Preprocess the '
-                                                 'multicondition dataset.')
-    parser.add_argument('-v', metavar='version', type=int, nargs=1,
-                        help='a version number for the saved datasets',
-                        default=1, required=False)
+    parser = argparse.ArgumentParser(description="Preprocess the multicondition"
+                                                 "dataset.")
+    parser.add_argument("-outdir", type=str, required=False,
+                        default="preprocess_multicondition_output",
+                        help="A path to a directory in which to save output."
+                             " Will be created if nonexistent.")
+    parser.add_argument("-patchsize", type=float, required=False,
+                        default=31, help="The side length of the patches that will"
+                                         " be extracted, in pixels.")
     args = parser.parse_args()
-    version = args.v[0]
 
     # ======================
     # Make figure directory.
     # ======================
-    FIGURE_BASE_PATH = "multicondition-{0:d}-figures".format(version)
-
-    os.makedirs(FIGURE_BASE_PATH, exist_ok=True)
+    figure_dir = os.path.join(args.outdir, "figures")
+    os.makedirs(figure_dir, exist_ok=True)
 
     # =================
     # Load the dataset.
     # =================
-    SAVE_PATH = "multicondition-{0:d}-whole-images".format(version)
-    SOURCE_PATH = "../../data/multicondition/data"
-    CONDITIONS = (
-        "light_uncovered_far_noperspective",
-        "nolight_uncovered_close_minorperspective",
-        "light_covered_close_severeperspective"
-    )
-    CHANNELS = ("red", "green", "blue")
+    EASY_DATASET_PATH = "../../data/multicondition"
+    TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
-    with tqdm.tqdm(desc="load images/counts") as progress_bar:
-        def transform_aspects(aspects):
-            channels = []
-            for condition in CONDITIONS:
-                for channel in CHANNELS:
-                    channels.append(aspects[condition + "_" + channel])
-            image = np.stack(channels, axis=2)
-            count = aspects["count"]
-            progress_bar.update(1)
-            return (image, count)
-        multicondition = dataset.Dataset(SAVE_PATH, 1)
-        multicondition.initialize_from_aspects(SOURCE_PATH, transform_aspects)
+    data_path = os.path.join(args.outdir, "multicondition_dataset")
+    loader_path = os.path.join(EASY_DATASET_PATH, "load.py")
+    with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
+        multicondition = dataset.Dataset(data_path, 1)
+        multicondition.load(loader_path)
+        progress_bar.update(1)
 
     # ===================
     # Make "plate_*.svg".
     # ===================
-    NUM_IMAGES = 3
+    NUM_PLATES = 3
     GRID_COLUMNS = 3
     IMAGE_SIZE = (4, 4)
-    RGB_MAX = 255
+    CONDITIONS = [
+        "light_uncovered_far_noperspective",
+        "nolight_uncovered_close_minorperspective",
+        "light_covered_close_severeperspective"
+    ]
 
-    def separate(image):
-        return [
-            image[..., 0:3],
-            image[..., 3:6],
-            image[..., 6:9]
-        ]
+    def plot_plates(filename_suffix):
+        image_sets, counts = multicondition.get_all()
+        for i in range(NUM_PLATES):
+            filename = "plate_{0:d}{1:s}.svg".format(i, filename_suffix)
+            path = os.path.join(figure_dir, filename)
+            title = "Plate #{0:d}".format(i)
+            visualization.plot_images(image_sets[i, ...], GRID_COLUMNS, IMAGE_SIZE,
+                                      title, subtitles=CONDITIONS, path=path)
 
-    images, masks = multicondition.get_batch(NUM_IMAGES)
-    separated_images = []
-    for i in range(NUM_IMAGES):
-        separated_images.append(np.stack(separate(images[i, ...]), axis=0))
-    visualization.plot_images(separated_images[0] / RGB_MAX,
-                              GRID_COLUMNS,
-                              IMAGE_SIZE, "Randomly Selected Plate #1",
-                              path=os.path.join(FIGURE_BASE_PATH,
-                                                "plate_1.svg"),
-                              subtitles=list(CONDITIONS))
-    visualization.plot_images(separated_images[1] / RGB_MAX,
-                              GRID_COLUMNS,
-                              IMAGE_SIZE, "Randomly Selected Plate #2",
-                              path=os.path.join(FIGURE_BASE_PATH,
-                                                "plate_2.svg"),
-                              subtitles=list(CONDITIONS))
-    visualization.plot_images(separated_images[2] / RGB_MAX,
-                              GRID_COLUMNS,
-                              IMAGE_SIZE, "Randomly Selected Plate #3",
-                              path=os.path.join(FIGURE_BASE_PATH,
-                                                "plate_3.svg"),
-                              subtitles=list(CONDITIONS))
+    plot_plates("")
 
-    # ============================
-    # Resize the images and masks.
-    # ============================
-    ACTUAL_COLONY_DIAM = 57
-    TARGET_COLONY_DIAM = 61
-    RESIZE_INTERP_TYPE = "bicubic"
+    # ==================
+    # Resize the images.
+    # ==================
+    EDGE_MODE = "reflect"
+    ORDER = 3
 
-    resize_factor = TARGET_COLONY_DIAM / ACTUAL_COLONY_DIAM
-    with tqdm.tqdm(desc="resize images", total=multicondition.size())\
-            as progress_bar:
+    tqdm_params = {"desc": "resize images", "total": multicondition.size() *
+                                                     len(CONDITIONS),
+                   "unit": "image"}
+    resize_factor = convnet1.ConvNet1.PATCH_SIZE / args.patchsize
+    with tqdm.tqdm(**tqdm_params) as progress_bar:
         def resize_example(example):
-            image, count = example
-            target_dims = tuple(round(dim*resize_factor) for dim in
-                                image.shape)
-            separated_images = separate(image)
-            for i in range(len(separated_images)):
-                separated_images[i] = misc.imresize(separated_images[i],
-                                                    target_dims,
-                                                    interp=RESIZE_INTERP_TYPE)
-            image = np.concatenate(separated_images, axis=2)
-            progress_bar.update(1)
-            return [(image, count)]
+            image_set, count = example
+            resized_shape = list(image_set.shape)
+            resized_shape[1] = round(resized_shape[1] * resize_factor)
+            resized_shape[2] = round(resized_shape[2] * resize_factor)
+            resized = np.empty(resized_shape)
+            for i in range(image_set.shape[0]):
+                resized[i, ...] = transform.resize(image_set[i, ...],
+                                                   resized_shape[1:], order=ORDER,
+                                                   mode=EDGE_MODE, clip=False)
+                progress_bar.update(1)
+            return [(resized, count)]
         multicondition.map(resize_example)
+
+    # ===========================
+    # Make "plate_*_resized.svg".
+    # ===========================
+    plot_plates("_resized")
 
     # =====================
     # Normalize the images.
     # =====================
-    with tqdm.tqdm(desc="normalize images", total=multicondition.size())\
-            as progress_bar:
-        def normalize_examples(examples):
-            images, counts = examples
-            images = preprocess.divide_median_normalize(images)
-            progress_bar.update(1)
-            return (images, counts)
-        multicondition.map_batch(normalize_examples)
+    tqdm_params = {"desc": "normalize images",
+                   "total": multicondition.size() * len(CONDITIONS),
+                   "unit": "image"}
+    with tqdm.tqdm(**tqdm_params) as progress_bar:
+        def normalize_images(examples):
+            image_sets, counts = examples
+            for i in range(image_sets.shape[0]):
+                image_set = image_sets[i, ...]
+                image_sets[i, ...] = preprocess.divide_median_normalize(
+                    image_set)
+                progress_bar.update(image_sets.shape[1])
+            return image_sets, counts
+        multicondition.map_batch(normalize_images)
+
+    # ==============================
+    # Make "plate_*_normalized.svg".
+    # ==============================
+    plot_plates("_normalized")
