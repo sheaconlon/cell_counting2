@@ -1,13 +1,16 @@
 import tensorflow as tf
 
-from src import neural_net
-from src import losses
+from cell_counting import neural_net
+from cell_counting import losses
 
 class ConvNet1(neural_net.NeuralNet):
 	"""A convolutional neural net for the segmentation of cell colonies in
 		images of plates. Attempts to replicate the model for the segmentation
 		of bacterial cell cytoplasm in microscopy images in Valen et al. Images
 		must have shape (61, 61, n_channels)."""
+
+	# The expected size of the patches that this model takes as input.
+	PATCH_SIZE = 61
 
 	def __init__(self, save_dir, chkpt_save_interval, num_samples):
 		"""Create a conv-net-1 model.
