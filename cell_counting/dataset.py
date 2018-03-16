@@ -500,7 +500,8 @@ class Dataset(object):
             inp, out = self._load_segment(i)
             inputs.append(inp)
             outputs.append(out)
-        inputs, outputs = np.stack(inputs, axis=0), np.stack(outputs, axis=0)
+        inputs = np.concatenate(inputs, axis=0)
+        outputs = np.concatenate(outputs, axis=0)
         assert inputs.shape[0] == outputs.shape[0], "Something is wrong!" \
             "There are not equal numbers of inputs and outputs in this dataset."
         return (inputs, outputs)
