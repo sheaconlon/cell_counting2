@@ -490,6 +490,8 @@ class Dataset(object):
     def get_all(self):
         """Get all examples in the dataset.
 
+        Returns the examples in the same order each time it is called.
+
         Returns:
             (tuple(numpy.ndarray, numpy.ndarray)): A tuple of two
                 elements: the inputs of all the examples and the outputs of
