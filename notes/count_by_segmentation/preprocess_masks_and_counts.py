@@ -1,4 +1,4 @@
-"""Preprocesses the ``easy`` dataset.
+"""Preprocesses the ``masks_and_counts`` dataset.
 
 Does the following:
 1. Resizes the images.
@@ -17,7 +17,7 @@ Produces the following plots:
 
 Saves the resulting `Dataset`s.
 
-Run ``python preprocess_easy.py -h`` to see usage details.
+Run ``python preprocess_masks_and_counts.py -h`` to see usage details.
 """
 
 # ========================================
@@ -50,10 +50,10 @@ if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
-    parser = argparse.ArgumentParser(description="Preprocess the easy"
+    parser = argparse.ArgumentParser(description="Preprocess the masks_and_counts"
                                                  "dataset.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="preprocess_easy_output",
+                        default="preprocess_masks_and_counts_output",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-patchsize", type=float, required=False,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    EASY_DATASET_SOURCE = "../../data/easy/data"
+    DATASET_SOURCE = "../../data/masks_and_counts/data"
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
@@ -88,9 +88,9 @@ if __name__ == "__main__":
             progress_bar.update(1)
             return (image, mask)
 
-        easy_dataset_dir = os.path.join(args.outdir, "easy_dataset")
-        easy = dataset.Dataset(easy_dataset_dir, 1)
-        easy.initialize_from_aspects(EASY_DATASET_SOURCE, transform_aspects)
+        dataset_dir = os.path.join(args.outdir, "masks_and_counts_dataset")
+        data = dataset.Dataset(dataset_dir, 1)
+        data.initialize_from_aspects(DATASET_SOURCE, transform_aspects)
 
     # ====================================
     # Make "images.svg" and "*_masks.svg".
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         GRID_COLUMNS = 2
         IMAGE_SIZE = (4, 4)
 
-        images, masks = easy.get_batch(NUM_IMAGES)
+        images, masks = data.get_batch(NUM_IMAGES)
         filename = "images{0:s}.svg".format(filename_suffix)
         path = os.path.join(figure_dir, filename)
         visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE,
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     IMAGE_ORDER = 3
     MASK_ORDER = 0
 
-    tqdm_params = {"desc": "resize images and masks", "total": easy.size(),
+    tqdm_params = {"desc": "resize images and masks", "total": data.size(),
                    "unit": "example"}
     resize_factor = convnet1.ConvNet1.PATCH_SIZE / args.patchsize
     with tqdm.tqdm(**tqdm_params) as progress_bar:
@@ -142,7 +142,7 @@ if __name__ == "__main__":
                                     mode=EDGE_MODE, clip=False)
             progress_bar.update(1)
             return [(image, mask)]
-        easy.map(resize_example)
+        data.map(resize_example)
 
     # ====================================================
     # Make "images_resized.svg" and "*_masks_resized.svg".
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     # =====================
     # Normalize the images.
     # =====================
-    tqdm_params = {"desc": "normalize images", "total": easy.size(),
+    tqdm_params = {"desc": "normalize images", "total": data.size(),
                    "unit": "example"}
     with tqdm.tqdm(**tqdm_params) as progress_bar:
         def normalize_images(examples):
@@ -160,7 +160,7 @@ if __name__ == "__main__":
             images = preprocess.divide_median_normalize(images)
             progress_bar.update(images.shape[0])
             return (images, masks)
-        easy.map_batch(normalize_images)
+        data.map_batch(normalize_images)
 
     # =============================
     # Make "images_normalized.svg".
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     SEGMENT_PROPORTION = 0.01
 
     patches_dir = os.path.join(args.outdir, "patches")
-    tqdm_params = {"desc": "extract patches", "total": easy.size(),
+    tqdm_params = {"desc": "extract patches", "total": data.size(),
                    "unit": "example"}
     with tqdm.tqdm(**tqdm_params) as progress_bar:
         def extract_patches(image, mask):
@@ -184,11 +184,11 @@ if __name__ == "__main__":
                 class_image, convnet1.ConvNet1.PATCH_SIZE,
                 max_patches=args.maxpatch)
             progress_bar.update(1)
-        segment_size = round(args.maxpatch * easy.size() * SEGMENT_PROPORTION)
-        new_easy = easy.map_generator(extract_patches, patches_dir,
+        segment_size = round(args.maxpatch * data.size() * SEGMENT_PROPORTION)
+        new_data = data.map_generator(extract_patches, patches_dir,
                                       segment_size)
-        easy.delete()
-        easy = new_easy
+        data.delete()
+        data = new_data
 
     # ===================
     # Make "patches.svg".
@@ -200,7 +200,7 @@ if __name__ == "__main__":
         CLASS_NAMES = {0: "0: inside a colony", 1: "1: on the edge of a colony",
                        2: "2: outside all colonies"}
 
-        patches, classes = easy.get_batch(NUM_PATCHES, pool_multiplier=20)
+        patches, classes = data.get_batch(NUM_PATCHES, pool_multiplier=20)
         subtitles = [CLASS_NAMES[classes[i]] for i in range(classes.shape[0])]
         path = os.path.join(figure_dir,
                             "patches{0:s}.svg".format(filename_suffix))
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     # ======================
     # Normalize the patches.
     # ======================
-    tqdm_params = {"desc": "normalize patches", "total": easy.size(),
+    tqdm_params = {"desc": "normalize patches", "total": data.size(),
                    "unit": "example"}
 
     def normalize_patches(examples):
@@ -221,7 +221,7 @@ if __name__ == "__main__":
         return (patches, classes)
 
     with tqdm.tqdm(**tqdm_params) as progress_bar:
-        easy.map_batch(normalize_patches)
+        data.map_batch(normalize_patches)
 
     # ==============================
     # Make "patches_normalized.svg".
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     # ===========================
     NUM_CLASSES = 3
 
-    tqdm_params = {"desc": "one-hot encode classes", "total": easy.size(),
+    tqdm_params = {"desc": "one-hot encode classes", "total": data.size(),
                    "unit": "example"}
 
     def one_hot_encode_classes(examples):
@@ -244,16 +244,17 @@ if __name__ == "__main__":
         return (patches, one_hot_classes)
 
     with tqdm.tqdm(**tqdm_params) as progress_bar:
-        easy.map_batch(one_hot_encode_classes)
+        data.map_batch(one_hot_encode_classes)
 
     # ==============================================
     # Split the dataset into training and test sets.
     # ==============================================
     TEST_P = 0.1
-    TRAIN_SAVE_PATH = os.path.join(args.outdir, "easy_train_dataset")
-    TEST_SAVE_PATH = os.path.join(args.outdir, "easy_test_dataset")
+    TRAIN_SAVE_PATH = os.path.join(args.outdir,
+                                   "masks_and_counts_train_dataset")
+    TEST_SAVE_PATH = os.path.join(args.outdir, "masks_and_counts_test_dataset")
 
     with tqdm.tqdm(desc="split dataset", total=1) as progress_bar:
-        train, test = easy.split(TEST_P, TRAIN_SAVE_PATH, TEST_SAVE_PATH)
-        easy.delete()
+        train, test = data.split(TEST_P, TRAIN_SAVE_PATH, TEST_SAVE_PATH)
+        data.delete()
         progress_bar.update(1)

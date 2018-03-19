@@ -1,8 +1,9 @@
-# `easy` Dataset
+# `masks_and_counts` Dataset
 
 ## Summary
 
-This dataset is composed of some plate images and some masks of those plate images.
+This dataset is composed of some plate images. Each plate image has some
+    associated masks and a CFU count.
 
 ## Organization
 
