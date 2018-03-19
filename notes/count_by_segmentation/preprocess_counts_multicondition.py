@@ -1,4 +1,4 @@
-"""Preprocesses the ``multicondition`` dataset.
+"""Preprocesses the ``counts_multicondition`` dataset.
 
 Does the following:
 1. Resizes the images.
@@ -11,7 +11,7 @@ Produces the following plots:
 
 Saves the resulting `Dataset`s.
 
-Run ``python preprocess_multicondition.py -h`` to see usage details.
+Run ``python preprocess_counts_multicondition.py -h`` to see usage details.
 """
 
 # ========================================
@@ -44,10 +44,11 @@ if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
-    parser = argparse.ArgumentParser(description="Preprocess the multicondition"
-                                                 "dataset.")
+    parser = argparse.ArgumentParser(description="Preprocess the"
+                                                 " counts_multicondition"
+                                                 " dataset.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="preprocess_multicondition_output",
+                        default="preprocess_counts_multicondition_output",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-patchsize", type=float, required=False,
@@ -64,10 +65,10 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    EASY_DATASET_PATH = "../../data/multicondition"
+    EASY_DATASET_PATH = "../../data/counts_multicondition"
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
-    data_path = os.path.join(args.outdir, "multicondition_dataset")
+    data_path = os.path.join(args.outdir, "counts_multicondition_dataset")
     loader_path = os.path.join(EASY_DATASET_PATH, "load.py")
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         multicondition = dataset.Dataset(data_path, 1)

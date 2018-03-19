@@ -1,4 +1,4 @@
-# `multicondition` Dataset
+# `counts_multicondition` Dataset
 
 ## Summary
 
