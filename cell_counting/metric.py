@@ -188,3 +188,58 @@ class AccuracyMetric(LossMetric):
             predicted = np.argmax(predicted, axis=1)
             return np.mean(np.equal(actual, predicted))
         super().__init__(save_path, data_fns, loss_fn)
+
+
+class DistributionMetric(BaseMetric):
+    """A metric that tracks how a distribution derived from a model changes
+    	over the course of training."""
+
+    def __init__(self, save_path, dist_fn):
+        """Create a distribution metric.
+
+        Args:
+            save_path (str): See `BaseMetric`.
+            dist_fn (func): A distribution function. Takes one argument: a
+                `model.BaseModel`. Returns a `tuple` of three scalars. These are
+                key points of the distribution: some measure of upper deviation
+                (the 90th percentile for instance), some measure of central
+                tendency (the mean for instance), and some measure of lower
+                deviation.
+        """
+        super().__init__(save_path)
+        self._dist_fn = dist_fn
+        self._train_steps = self._read_save_file("train_steps")
+        self._key_points = self._read_save_file("key_points")
+
+    def evaluate(self, model):
+        """Evaluate this distribution metric on a model and save the results.
+
+        Args:
+            model (model.BaseModel): See `BaseMetric`.
+
+        Returns:
+            (tuple): The key points returned by the distribution function. See
+            	``dist_fn`` in `__init__`.
+        """
+        train_steps = model.get_global_step()
+        upper, center, lower = self._dist_fn(model)
+        self._record(train_steps, upper, center, lower)
+        return (upper, center, lower)
+
+    def plot(self, title, xlab, ylab, line_labels, height, width, path=None):
+        LINE_STYLES = ["k.:", "k.-", "k.:"]
+
+        sets_of_ys = [self._key_points[i, ...] for i
+                      in range(self._key_points.shape[0])]
+        visualization.plot_lines(self._train_steps, sets_of_ys, title, xlab,
+                                 ylab, line_labels, height, width,
+                                 line_styles=LINE_STYLES, path=path)
+
+    def _record(self, train_steps, upper, center, lower):
+        train_steps = [np.array([train_steps])]
+        key_points = [np.array([upper, center, lower])[np.newaxis]]
+        if self._train_steps is not None:
+            train_steps.insert(0, self._train_steps)
+            key_points.insert(0, self._key_points)
+        self._train_steps = np.concatenate(train_steps, axis=0)
+        self._key_points = np.concatenate(key_points, axis=0)
