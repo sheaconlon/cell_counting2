@@ -58,6 +58,51 @@ class BaseModel(object):
                     break
         session.close()
 
+    def train_epochs(self, dataset, duration, callback, callback_interval):
+        """Trains the model on successive epochs of some dataset, invoking a
+            callback at a given interval.
+
+        Args:
+            dataset (dataset.Dataset): The dataset to train on.
+            duration (int): The number of minutes to train for.
+            callback (func): A callback function. It is called with no
+                arguments.
+            callback_interval (int): The number of minutes to train for
+                between calls to ``callback``.
+        """
+        def do_round():
+            round_inputs, round_outputs = [], []
+            for i, batch in enumerate(batch_iterable):
+                batch_inputs, batch_outputs = batch
+                round_inputs.append(batch_inputs)
+                round_outputs.append(batch_outputs)
+                if i == self._TRAIN_STEPS - 1:
+                    break
+            round_inputs = np.concatenate(round_inputs, axis=0)
+            round_outputs = np.concatenate(round_outputs, axis=0)
+            data_fn = tf.estimator.inputs.numpy_input_fn(
+                {"inputs": round_inputs}, round_outputs,
+                self.get_batch_size(), self._TRAIN_STEPS, shuffle=False,
+                queue_capacity=self._TRAIN_STEPS)
+            self._estimator.train(data_fn, steps=self._TRAIN_STEPS)
+            self._global_step += self._TRAIN_STEPS
+
+        with self._set_up_tf() as session:
+            end_train = time.time() + duration * self._SECS_PER_MIN
+            batch_iterable = dataset.get_batch_iterable(self.get_batch_size())
+            do_round()
+            callback()
+            round_duration = 0
+            while time.time() + round_duration < end_train:
+                end_interval = time.time() + callback_interval * \
+                               self._SECS_PER_MIN
+                while time.time() + round_duration < end_interval:
+                    start_round = time.time()
+                    do_round()
+                    round_duration = time.time() - start_round
+                callback()
+        session.close()
+
     def predict(self, inputs):
         """Predict the outputs for some inputs.
 

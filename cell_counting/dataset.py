@@ -487,6 +487,95 @@ class Dataset(object):
         outputs = np.stack(outputs, axis=0)
         return inputs, outputs
 
+    class BatchIterator:
+        def __init__(self, dataset, batch_size, pool_size):
+            self._dataset = dataset
+            self._batch_size = batch_size
+            self._pool_size = pool_size
+
+        def __next__(self):
+            return self._dataset.get_batch(self._batch_size, self._pool_size)
+
+        def __iter__(self):
+            return self
+
+    class EpochBatchIterator:
+        def __init__(self, dataset, batch_size, pool_size):
+            self._dataset = dataset
+            self._batch_size = batch_size
+            self._pool_size = pool_size
+
+            self._epoch = 0
+            self._start_epoch()
+            inputs, outputs = dataset.get_batch(2, 1)
+            self._pool_max = (pool_size + 2) * dataset._segment_size
+            self._pool_min = pool_size * dataset._segment_size
+            self._pool_inputs = np.empty((self._pool_max,) + inputs.shape[1:])
+            self._pool_outputs = np.empty((self._pool_max,) + outputs.shape[1:])
+
+        def __next__(self):
+            self._replenish()
+            chosen = np.random.choice(self._pool_top + 1, self._batch_size)
+            inputs = self._pool_inputs[chosen, ...]
+            outputs = self._pool_outputs[chosen, ...]
+            new_inputs = np.delete(self._pool_inputs, chosen, axis=0)
+            self._pool_top = new_inputs.shape[0]
+            self._pool_inputs[:self._pool_top, ...] = new_inputs
+            new_outputs = np.delete(self._pool_outputs, chosen, axis=0)
+            self._pool_outputs[:self._pool_top, ...] = new_outputs
+            return inputs, outputs
+
+        def __iter__(self):
+            return self
+
+        def _replenish(self):
+            while (self._pool_top + 1) <= self._pool_min:
+                try:
+                    segment = self._segment_use_map.index(False)
+                except ValueError:
+                    break
+                self._segment_use_map[segment] = True
+                inputs, outputs = self._dataset._load_segment(segment)
+                new_pool_top = self._pool_top + inputs.shape[0]
+                self._pool_inputs[self._pool_top:new_pool_top, ...] = inputs
+                self._pool_outputs[self._pool_top:new_pool_top, ...] = outputs
+                self._pool_top = new_pool_top
+            if (self._pool_top + 1) < self._batch_size:
+                self._start_epoch()
+                self._replenish()
+
+        def _start_epoch(self):
+            self._epoch += 1
+            self._pool_top = 0
+            self._segment_use_map = [False for _
+                                     in range(self._dataset._segments)]
+
+        def get_epoch(self):
+            return self._epoch
+
+    def get_batch_iterable(self, batch_size, pool_size=5, epochs=False):
+        """Get an iterable over batches of this dataset's examples.
+
+        Args:
+            batch_size (int): The number of examples per batch.
+            pool_size (int): The minimum number of segments to pool together in
+                memory to draw random batches from. If omitted, ``5``.
+            epochs (bool): Whether to organize the batches into epochs, so that
+                every example is seen once before any is  repeated,
+                then every example is seen twice before any is repeated a third
+                time, etc. If omitted, ``False``.
+
+        Returns:
+            (Iterable): An iterable over batches of this dataset's examples.
+                Each element of the sequence is a ``tuple`` of
+                ``numpy.ndarray``s, where the first array is the inputs and the
+                second array is the outputs.
+        """
+        if not epochs:
+            return Dataset.BatchIterator(self, batch_size, pool_size)
+        else:
+            return Dataset.EpochBatchIterator(self, batch_size, pool_size)
+
     def get_all(self):
         """Get all examples in the dataset.
 

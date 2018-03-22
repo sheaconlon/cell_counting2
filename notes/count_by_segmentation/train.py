@@ -124,37 +124,57 @@ if __name__ == "__main__":
     # Train the model, periodically evaluating and plotting the metrics.
     # ==================================================================
     SECS_PER_MIN = 60
-    TQDM_PARAMS = {"desc": "train model", "unit": "round"}
 
     def save_model():
-        training_iterations = model.get_global_step()
-        iteration_path = os.path.join(args.outdir, str(training_iterations))
-        save_path = os.path.join(iteration_path, "model_save")
-        shutil.copytree(model_path, save_path)
+        TQDM_PARAMS = {"desc": "save model", "unit": "model", "total": 1,
+                       "leave": False}
+        with tqdm.tqdm(**TQDM_PARAMS) as subprogress_bar:
+            training_iterations = model.get_global_step()
+            iteration_path = os.path.join(args.outdir, str(training_iterations))
+            save_path = os.path.join(iteration_path, "model_save")
+            shutil.copytree(model_path, save_path)
+            subprogress_bar.update(1)
 
     def plot_metrics():
-        training_iterations = model.get_global_step()
-        iteration_path = os.path.join(args.outdir, str(training_iterations))
-        os.makedirs(iteration_path, exist_ok=True)
-        path = os.path.join(iteration_path, "train_confusion_matrix.svg")
-        metrics["train_confusion_matrix"].plot(
-            "Confusion Matrix for Training Batch", 5, 5, path=path)
-        path = os.path.join(iteration_path, "test_confusion_matrix.svg")
-        metrics["test_confusion_matrix"].plot(
-            "Confusion Matrix for Test Batch", 5, 5, path=path)
-        path = os.path.join(iteration_path, "loss.svg")
-        metrics["loss"].plot("Loss",
-            "number of training iterations", "loss",
-            ["loss on training batch", "loss on test batch"], 4, 10, path=path)
-        path = os.path.join(iteration_path, "accuracy.svg")
-        metrics["accuracy"].plot("Accuracy",
-            "number of training iterations",
-            "proportion of examples correctly classified",
-            ["in training batch", "in test batch"], 4, 10, path=path)
+        tqdm_params = {"desc": "plot_metrics", "unit": "metric", "leave": False,
+                       "total": len(metrics)}
+        with tqdm.tqdm(**tqdm_params) as subprogress_bar:
+            training_iterations = model.get_global_step()
+            iteration_path = os.path.join(args.outdir, str(training_iterations))
+            os.makedirs(iteration_path, exist_ok=True)
+            path = os.path.join(iteration_path, "train_confusion_matrix.svg")
+            metrics["train_confusion_matrix"].plot(
+                "Confusion Matrix for Training Batch", 5, 5, path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "test_confusion_matrix.svg")
+            metrics["test_confusion_matrix"].plot(
+                "Confusion Matrix for Test Batch", 5, 5, path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "loss.svg")
+            metrics["loss"].plot("Loss",
+                "number of training iterations", "loss",
+                ["loss on training batch", "loss on test batch"], 4, 10,
+                path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "accuracy.svg")
+            metrics["accuracy"].plot("Accuracy",
+                "number of training iterations",
+                "proportion of examples correctly classified",
+                ["in training batch", "in test batch"], 4, 10, path=path)
+            subprogress_bar.update(1)
 
-    rounds = args.duration // args.metricinterval
-    for _ in tqdm.tqdm(range(rounds), **TQDM_PARAMS):
-        model.train(train, args.metricinterval * SECS_PER_MIN)
-        model.evaluate(metrics)
-        plot_metrics()
+    def callback():
+        TQDM_PARAMS = {"desc": "evaluate model", "unit": "model", "total": 1,
+                       "leave": False}
+        with tqdm.tqdm(**TQDM_PARAMS) as subprogress_bar:
+            model.evaluate(metrics)
+            subprogress_bar.update(1)
         save_model()
+        plot_metrics()
+        progress_bar.update(1)
+
+
+    tqdm_params = {"desc": "train model", "unit": "round",
+                   "total": args.duration // args.metricinterval + 1}
+    with tqdm.tqdm(**tqdm_params) as progress_bar:
+        model.train_epochs(train, args.duration, callback, args.metricinterval)
