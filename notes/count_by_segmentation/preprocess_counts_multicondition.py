@@ -4,10 +4,12 @@ Does the following:
 1. Resizes the images.
 2. Normalizes the images.
 
-Produces the following plots:
+Produces the following plots, where * is 1, 2, or 3 and + is the name of a
+condition.
 1. plate_*.svg
 2. plate_*_resized.svg
 3. plate_*_normalized.svg
+4. patch_variability_+.svg
 
 Saves the resulting `Dataset`s.
 
@@ -31,7 +33,7 @@ from models.segmentation.convnet1 import convnet1
 # ===============================
 # Import from the Python library.
 # ===============================
-import argparse
+import argparse, math
 
 # ===========================
 # Import from other packages.
@@ -149,3 +151,30 @@ if __name__ == "__main__":
     # Make "plate_*_normalized.svg".
     # ==============================
     plot_plates("_normalized")
+
+    # ===============================
+    # Make "patch_variability_+.svg".
+    # ===============================
+    MIN_SIZE = 1/200
+    MAX_SIZE = 1/40
+    NUM_SIZES = 20
+    SAMPLES = 10_000
+
+    images, _ = multicondition.get_all()
+    min_dim, max_dim = min(images.shape[2:3]), max(images.shape[2:3])
+    min_size_px = int(MIN_SIZE * min_dim)
+    max_size_px = math.ceil(MAX_SIZE * max_dim)
+    if min_size_px % 2 == 0:
+        min_size_px -= 1
+    if max_size_px % 2 == 0:
+        max_size_px += 1
+    min_size_px = max(min_size_px, 3)
+    max_size_px = min(max_size_px, min_dim)
+    for i, condition in enumerate(CONDITIONS):
+        sizes, var_vars = preprocess.patch_variability_curve(images[:, i, ...],
+            min_size_px, max_size_px, NUM_SIZES, SAMPLES)
+        filename = "patch_variability_{0:s}.svg".format(condition)
+        path = os.path.join(figure_dir, filename)
+        visualization.plot_line(sizes, var_vars, "Patch Variability Curve",
+                                "patch size (px)",
+                                "variance of patch variances", 4, 10, path=path)
