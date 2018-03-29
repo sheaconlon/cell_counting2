@@ -243,3 +243,5 @@ class DistributionMetric(BaseMetric):
             key_points.insert(0, self._key_points)
         self._train_steps = np.concatenate(train_steps, axis=0)
         self._key_points = np.concatenate(key_points, axis=0)
+        self._write_save_file("train_steps", self._train_steps)
+        self._write_save_file("key_points", self._key_points)
