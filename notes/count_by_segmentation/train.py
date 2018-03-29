@@ -1,12 +1,13 @@
-"""Trains ``models/segmentation/convnet1`` on the ``easy`` dataset.
+"""Trains ``models/segmentation/convnet1`` on the ``counts_and_masks`` dataset.
 
 Produces the following plots, where * is a number of training iterations:
-1. train_confusion_matrix_*.svg
-2. test_confusion_matrix_*.svg
-3. train_loss_*.svg
-4. test_loss_*.svg
+1. */train_confusion_matrix.svg
+2. */test_confusion_matrix.svg
+3. */loss.svg
+4. */accuracy.svg
 
-Saves the resulting `ConvNet1`.
+Saves `ConvNet1`s in `*/model_save`, where * is a number of training iterations.
+    The current `ConvNet1` is saved in `current_model_save`.
 
 Run ``python train.py -h`` to see usage details.
 """
@@ -22,7 +23,8 @@ sys.path.insert(0, root_relative_path)
 # ==========================
 # Import from cell_counting.
 # ==========================
-from cell_counting import dataset, metric, utilities, losses, visualization
+from cell_counting import dataset, metric, utilities, losses, preprocess, \
+    postprocess
 from models.segmentation.convnet1 import convnet1
 
 # ===============================
@@ -34,127 +36,203 @@ import argparse, shutil
 # Import from third-party packages.
 # =================================
 import tqdm
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' # Prevent TensorFlow's logging to console.
+
+# Prevent TensorFlow from logging to the console.
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
     parser = argparse.ArgumentParser(
-        description='Train models/segmentation/convnet1 on the easy dataset.')
-    parser.add_argument('-easyv', metavar='easy dataset version', type=int,
-                        nargs=1, help='the version number of the saved easy '
-                                      'dataset',
-                        default=1, required=False)
-    parser.add_argument('-v', metavar='version', type=int, nargs=1,
-                        help='a version number for the saved model',
-                        default=1, required=False)
+        description='Train models/segmentation/convnet1 on the '
+                    'counts_and_masks dataset.')
+    parser.add_argument("-datadir", type=str, required=False,
+                        default="preprocess_masks_and_counts_output",
+                        help="A path to a directory containing the output of "
+                             "preprocess_masks_and_counts.py.")
+    parser.add_argument("-multiconditionpiecesdir", type=str, required=False,
+                        default="preprocess_multicondition_pieces_output",
+                        help="A path to a directory containing the output of "
+                             "preprocess_multicondition_pieces.py.")
+    parser.add_argument("-outdir", type=str, required=False,
+                        default="train_output",
+                        help="A path to a directory in which to save output."
+                             " Will be created if nonexistent.")
+    parser.add_argument("-metricexamples", type=int, required=False,
+                        default=3000,
+                        help="The number of examples to use for each metric "
+                             "evaluation.")
+    parser.add_argument("-duration", type=int, required=False,
+                        default=60 * 4,
+                        help="The (approximate) number of minutes to train "
+                             "for.")
+    parser.add_argument("-metricinterval", type=int, required=False,
+                        default=3,
+                        help="The (approximate) number of minutes to train "
+                             "between metric evaluations.")
     args = parser.parse_args()
-    easy_version = args.easyv[0]
-    version = args.v[0]
-
-    # ======================
-    # Make figure directory.
-    # ======================
-    FIGURE_BASE_PATH = "model-{0:d}-figures".format(version)
-
-    os.makedirs(FIGURE_BASE_PATH, exist_ok=True)
 
     # =================
     # Load the dataset.
     # =================
-    TRAIN_SAVE_PATH = "easy-{0:d}-patches-train".format(easy_version)
-    TEST_SAVE_PATH = "easy-{0:d}-patches-test".format(easy_version)
-
-    train = dataset.Dataset(TRAIN_SAVE_PATH)
-    test = dataset.Dataset(TEST_SAVE_PATH)
+    train_path = os.path.join(args.datadir, "masks_and_counts_train_dataset")
+    test_path = os.path.join(args.datadir, "masks_and_counts_test_dataset")
+    train = dataset.Dataset(train_path)
+    test = dataset.Dataset(test_path)
 
     # =====================
     # Initialize the model.
     # =====================
-    MODEL_SAVE_BASE_PATH = "model-{0:d}-saves".format(version)
-    SAVE_INTERVAL = 10
+    SAVE_INTERVAL = 5
+    TQDM_PARAMS = {"desc": "initialize model", "total": 1, "unit": "model"}
 
-    with tqdm.tqdm(desc="initialize model") as progress_bar:
-        model = convnet1.ConvNet1(os.path.join(MODEL_SAVE_BASE_PATH,
-                                               "current"),
-                                  SAVE_INTERVAL, train.size())
+    model_path = os.path.join(args.outdir, "current_model_save")
+    with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
+        model = convnet1.ConvNet1(model_path, SAVE_INTERVAL, train.size())
         progress_bar.update(1)
 
-    # ===================
-    # Create the metrics.
-    # ===================
-    METRIC_SAVE_PATH = "model-{0:d}-metric-saves".format(version)
-    NUM_EXAMPLES = 4_000
+    # =======================
+    # Initialize the metrics.
+    # =======================
+    POOL_SIZE = 5
     NUM_CLASSES = 3
+    PATCH_BATCH_SIZE = 3000
+    MIN_DIST_FRAC = 1 / 2
+    MIN_DIAM_FRAC = 1 / 2
+    SAMPLING_TARGET = 400 # the original size of the pieces
 
-    with tqdm.tqdm(desc="get data for metrics") as progress_bar:
-        metrics_train = train.get_batch(NUM_EXAMPLES)
-        progress_bar.update(1)
-        metrics_test = test.get_batch(NUM_EXAMPLES)
-        progress_bar.update(1)
-        def loss_fn(actual, pred):
-            loss = losses.make_cross_entropy_loss()(actual, pred)
-            return utilities.tensor_eval(loss)
-        metrics = {
-            "train_loss": metric.LossMetric(os.path.join(
-                METRIC_SAVE_PATH, "train_loss"),
-                metrics_train, loss_fn),
-            "test_loss": metric.LossMetric(os.path.join(
-                METRIC_SAVE_PATH, "test_loss"),
-                metrics_test, loss_fn),
-            "train_confusion_matrix": metric.ConfusionMatrixMetric(
-                os.path.join(METRIC_SAVE_PATH, "train_confusion_matrix"),
-                metrics_train, 3),
-            "test_confusion_matrix": metric.ConfusionMatrixMetric(
-                os.path.join(METRIC_SAVE_PATH, "test_confusion_matrix"),
-                metrics_test, 3)
-        }
+    def loss_fn(actual, predicted):
+        loss = losses.make_cross_entropy_loss()(actual, predicted)
+        return utilities.tensor_eval(loss)
 
-    # ======================================================================
+    def train_data_fn():
+        return train.get_batch(args.metricexamples, POOL_SIZE)
+
+    def test_data_fn():
+        return test.get_batch(args.metricexamples, POOL_SIZE)
+
+    path = os.path.join(args.multiconditionpiecesdir,
+                        "multicondition_pieces_dataset")
+    pieces_dataset = dataset.Dataset(path)
+    pieces_images, pieces_counts = pieces_dataset.get_all()
+    sampling_interval = int(pieces_images.shape[1] / SAMPLING_TARGET)
+    min_dist = model.PATCH_SIZE * MIN_DIST_FRAC
+    min_dist = max(1, int(min_dist / sampling_interval))
+    min_diam = model.PATCH_SIZE * MIN_DIAM_FRAC
+    min_diam = min_diam / sampling_interval
+
+    def patch_classifier(patches):
+        patches = preprocess.subtract_mean_normalize(patches)
+        scores = model.predict(patches)
+        return scores
+
+    def absolute_error(model):
+        errors = []
+        for i in range(pieces_images.shape[0]):
+            predicted_count = postprocess.count_regions(pieces_images[i, ...],
+                model.PATCH_SIZE, patch_classifier, PATCH_BATCH_SIZE,
+                min_dist, min_diam, sampling_interval=sampling_interval)
+            errors.append(predicted_count - pieces_counts[i])
+        return max(errors), sum(errors) / len(errors), min(errors)
+
+    def relative_error(model):
+        errors = []
+        for i in range(pieces_images.shape[0]):
+            predicted_count = postprocess.count_regions(pieces_images[i, ...],
+                model.PATCH_SIZE, patch_classifier, PATCH_BATCH_SIZE,
+                min_dist, min_diam, sampling_interval=sampling_interval)
+            error = (predicted_count - pieces_counts[i]) / pieces_counts[i]
+            errors.append(error)
+        return max(errors), sum(errors) / len(errors), min(errors)
+
+    metric_path = os.path.join(args.outdir, "metrics")
+    metrics = {
+        "loss": metric.LossMetric(
+            os.path.join(metric_path, "loss"),
+            [train_data_fn, test_data_fn], loss_fn),
+        "train_confusion_matrix": metric.ConfusionMatrixMetric(
+            os.path.join(metric_path, "train_confusion_matrix"),
+            train_data_fn, NUM_CLASSES),
+        "test_confusion_matrix": metric.ConfusionMatrixMetric(
+            os.path.join(metric_path, "test_confusion_matrix"),
+            test_data_fn, NUM_CLASSES),
+        "accuracy": metric.AccuracyMetric(
+            os.path.join(metric_path, "accuracy"),
+            [train_data_fn, test_data_fn]),
+        "absolute_error": metric.DistributionMetric(
+            os.path.join(metric_path, "absolute_error"), absolute_error),
+        "relative_error": metric.DistributionMetric(
+            os.path.join(metric_path, "relative_error"), relative_error)
+    }
+
+    # ==================================================================
     # Train the model, periodically evaluating and plotting the metrics.
-    # ======================================================================
-    TRAIN_LENGTH = 240
-    METRIC_INTERVAL = 6
+    # ==================================================================
     SECS_PER_MIN = 60
 
     def save_model():
-        training_iterations = model.get_global_step() * model.get_batch_size()
-        current_save = os.path.join(MODEL_SAVE_BASE_PATH, "current")
-        destination_save = os.path.join(MODEL_SAVE_BASE_PATH,
-                                        "at-{0:d}".format(training_iterations))
-        shutil.copytree(current_save, destination_save)
+        TQDM_PARAMS = {"desc": "save model", "unit": "model", "total": 1,
+                       "leave": False}
+        with tqdm.tqdm(**TQDM_PARAMS) as subprogress_bar:
+            training_iterations = model.get_global_step()
+            iteration_path = os.path.join(args.outdir, str(training_iterations))
+            save_path = os.path.join(iteration_path, "model_save")
+            shutil.copytree(model_path, save_path)
+            subprogress_bar.update(1)
 
     def plot_metrics():
-        training_iterations = model.get_global_step() * model.get_batch_size()
-        train_confusion_matrix_path = os.path.join(FIGURE_BASE_PATH,
-            "train_confusion_matrix_{0:d}.svg".format(training_iterations))
-        metrics["train_confusion_matrix"].plot("Training Confusion Matrix",
-                                                5, 5,
-                                               path=train_confusion_matrix_path)
-        test_confusion_matrix_path = os.path.join(FIGURE_BASE_PATH,
-            "test_confusion_matrix_{0:d}.svg".format(training_iterations))
-        metrics["test_confusion_matrix"].plot("Test Confusion Matrix",
-                                                5, 5,
-                                                path=test_confusion_matrix_path)
-        train_loss_path = os.path.join(FIGURE_BASE_PATH,
-            "train_loss_{0:d}.svg".format(training_iterations))
-        metrics["train_loss"].plot("Training Loss",
-                                   "# of training examples seen",
-                                   "loss on batch of training data", 4, 10,
-                                   path=train_loss_path)
-        test_loss_path = os.path.join(FIGURE_BASE_PATH,
-            "test_loss_{0:d}.svg".format(training_iterations))
-        metrics["test_loss"].plot("Test Loss", "# of training examples seen",
-                                  "loss on batch of test data", 4, 10,
-                                  path=test_loss_path)
+        tqdm_params = {"desc": "plot_metrics", "unit": "metric", "leave": False,
+                       "total": len(metrics)}
+        with tqdm.tqdm(**tqdm_params) as subprogress_bar:
+            training_iterations = model.get_global_step()
+            iteration_path = os.path.join(args.outdir, str(training_iterations))
+            os.makedirs(iteration_path, exist_ok=True)
+            path = os.path.join(iteration_path, "train_confusion_matrix.svg")
+            metrics["train_confusion_matrix"].plot(
+                "Confusion Matrix for Training Batch", 5, 5, path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "test_confusion_matrix.svg")
+            metrics["test_confusion_matrix"].plot(
+                "Confusion Matrix for Test Batch", 5, 5, path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "loss.svg")
+            metrics["loss"].plot("Loss",
+                "number of training iterations", "loss",
+                ["loss on training batch", "loss on test batch"], 4, 10,
+                path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "accuracy.svg")
+            metrics["accuracy"].plot("Accuracy",
+                "number of training iterations",
+                "proportion of examples correctly classified",
+                ["in training batch", "in test batch"], 4, 10, path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "absolute_error.svg")
+            metrics["absolute_error"].plot("Absolute Error",
+                "number of training iterations", "error in count",
+                ["most positive error", "mean error", "most negative error"],
+                4, 10, path=path)
+            subprogress_bar.update(1)
+            path = os.path.join(iteration_path, "relative_error.svg")
+            metrics["relative_error"].plot("Relative Error",
+                "number of training iterations", "error in count",
+                ["most positive error", "mean error", "most negative error"],
+                4, 10, path=path)
+            subprogress_bar.update(1)
 
-
-    plot_metrics()
-    for _ in tqdm.tqdm(range(TRAIN_LENGTH // METRIC_INTERVAL),
-                       desc="train model/evaluate metrics"):
-        model.train(train, METRIC_INTERVAL * SECS_PER_MIN)
-        model.evaluate(metrics)
-        plot_metrics()
+    def callback():
+        TQDM_PARAMS = {"desc": "evaluate model", "unit": "model", "total": 1,
+                       "leave": False}
+        with tqdm.tqdm(**TQDM_PARAMS) as subprogress_bar:
+            model.evaluate(metrics)
+            subprogress_bar.update(1)
         save_model()
+        plot_metrics()
+        progress_bar.update(1)
 
+
+    tqdm_params = {"desc": "train model", "unit": "round",
+                   "total": args.duration // args.metricinterval + 1}
+    with tqdm.tqdm(**tqdm_params) as progress_bar:
+        model.train_epochs(train, args.duration, callback, args.metricinterval)

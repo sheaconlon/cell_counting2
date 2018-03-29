@@ -1,4 +1,4 @@
-import math, random, multiprocessing
+import math, random
 
 import tensorflow as tf
 import numpy as np
@@ -255,7 +255,7 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
 
 
 def _var_of_vars(size, images, samples):
-    BATCH_SIZE = 1_000
+    BATCH_SIZE = 1000
 
     num_images, height, width, num_channels = images.shape
     size = int(size)
@@ -324,13 +324,9 @@ def patch_variability_curve(images, min_size, max_size, num_sizes, samples):
     assert num_sizes >= 2, "parameter num_sizes must be >= 2"
     assert samples >= 1, "parameter samples must be >= 1"
 
-    with multiprocessing.Pool() as pool:
-        possible_sizes = np.geomspace(min_size, max_size, num=num_sizes)
-        images_repeated = [images for _ in range(num_sizes)]
-        samples_repeated = [samples for _ in range(num_sizes)]
-        args = zip(possible_sizes, images_repeated, samples_repeated)
-        results = pool.starmap(_var_of_vars, args, chunksize=1)
-    sizes, var_of_vars = zip(*results)
-    sizes, var_of_vars = np.array(sizes), np.array(var_of_vars)
+    sizes, var_of_vars = np.empty(num_sizes), np.empty(num_sizes)
+    intended_sizes = np.geomspace(min_size, max_size, num=num_sizes)
+    for i, intended_size in enumerate(intended_sizes):
+        sizes[i], var_of_vars[i] = _var_of_vars(intended_size, images, samples)
     return sizes, var_of_vars
 

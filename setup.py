@@ -20,6 +20,7 @@ setup(
     'openpyxl',
     'tensorflow',
     'scikit-image',
-    'matplotlib'
+    'matplotlib',
+    'imageio'
   ]
 )

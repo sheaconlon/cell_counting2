@@ -124,7 +124,7 @@ def plot_line(xs, ys, title, x_label, y_label, height, width, path=None):
     plt.close()
 
 def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
-        width, path=None):
+        width, line_styles=None, path=None):
     """Plot some lines.
 
     Args:
@@ -137,28 +137,34 @@ def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
         line_labels (list of str): The labels for the lines.
         height (int): The height of the plot, in inches.
         width (int): The width of the plot, in inches.
+        line_styles (list(str)): Styles for the lines. If ``None`` or omitted,
+            styles are chosen automatically. Each must be a valid format string
+            for `matplotlib.pyplot.plot`.
         path (str): The path to save the plot to. If ``None`` or omitted, the
             plot is shown.
     """
+    if line_styles is None:
+        line_styles = ['' for _ in range(len(sets_of_ys[0]))]
+
     plt.close()
-    fig = plt.figure(figsize=(width, height), dpi=PLT_DPI)
+    plt.figure(figsize=(width, height), dpi=PLT_DPI)
     plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    for i, line_label in enumerate(line_labels):
+    for i in range(len(sets_of_ys[0])):
         ys = [set_of_ys[i] for set_of_ys in sets_of_ys]
-        if i < 7:
-            color = (i/7, 0, 0)
-        elif i >= 7:
-            color = (0, (i-7)/7, 0)
-        plt.plot(xs, ys, label=line_label, color=color, linewidth=0.5)
+        line_style, line_label = line_styles[i], line_labels[i]
+        plt.plot(xs, ys, line_style, label=line_label)
+    plt.legend()
     if path is None:
         plt.show()
     else:
         plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
-def plot_scatter(xs, ys, title, x_label, y_label, height, width):
+
+def plot_scatter(xs, ys, title, x_label, y_label, height, width, colors=None,
+                 path=None):
     """Make a scatterplot.
 
     Args:
@@ -169,12 +175,20 @@ def plot_scatter(xs, ys, title, x_label, y_label, height, width):
         y_label (str): The label for the y-axis.
         height (int): The height of the plot, in inches.
         width (int): The width of the plot, in inches.
+        colors (list of float): The colors. If omitted or ``None``, all black.
+        path (str): The path to save the plot to. If ``None`` or omitted, the
+            plot is shown.
     """
+    if colors is None:
+        colors = [1 for _ in xs]
     plt.close()
     plt.figure(figsize=(width, height), dpi=PLT_DPI)
     plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    plt.scatter(xs, ys)
-    plt.show()
+    plt.scatter(xs, ys, c=colors)
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi='figure', format='svg')
     plt.close()
