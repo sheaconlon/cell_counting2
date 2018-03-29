@@ -255,7 +255,7 @@ def extract_patches(image, class_image, size, max_patches=float("inf"),
 
 
 def _var_of_vars(size, images, samples):
-    BATCH_SIZE = 1_000
+    BATCH_SIZE = 1000
 
     num_images, height, width, num_channels = images.shape
     size = int(size)

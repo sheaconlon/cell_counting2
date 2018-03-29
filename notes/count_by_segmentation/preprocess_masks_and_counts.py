@@ -60,7 +60,7 @@ if __name__ == "__main__":
                         default=43, help="The side length of the patches to"
                                          " extract, in pixels.")
     parser.add_argument("-maxpatch", type=int, required=False,
-                        default=1_000_000, help="The maximum number of patches"
+                        default=1000000, help="The maximum number of patches"
                                                 " to extract from each "
                                                 "example.")
     args = parser.parse_args()

@@ -73,14 +73,13 @@ class Dataset(object):
             if not dir_ent.is_dir():
                 return
             aspects = {}
-            with os.scandir(dir_ent.path) as example_dir_it:
-                for example_dir_ent in example_dir_it:
-                    if example_dir_ent.is_dir():
-                        continue
-                    name, _ = os.path.splitext(example_dir_ent.name)
-                    name = name.lower()
-                    val = self._read_aspect(example_dir_ent.path)
-                    aspects[name] = val
+            for example_dir_ent in os.scandir(dir_ent.path):
+                if example_dir_ent.is_dir():
+                    continue
+                name, _ = os.path.splitext(example_dir_ent.name)
+                name = name.lower()
+                val = self._read_aspect(example_dir_ent.path)
+                aspects[name] = val
             return transform(aspects)
         inputs, outputs = [], []
         with futures.ThreadPoolExecutor() as executor:
