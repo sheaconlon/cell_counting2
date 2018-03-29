@@ -507,8 +507,11 @@ class Dataset(object):
             self._epoch = 0
             self._start_epoch()
             inputs, outputs = dataset.get_batch(2, 1)
-            self._pool_max = (pool_size + 2) * dataset._segment_size
-            self._pool_min = pool_size * dataset._segment_size
+            segments = (int(batch_size / dataset._segment_size) + 1)
+            segments *= pool_size
+            segments = min(segments, dataset._segments)
+            self._pool_max = (segments + 2) * dataset._segment_size
+            self._pool_min = segments * dataset._segment_size
             self._pool_inputs = np.empty((self._pool_max,) + inputs.shape[1:])
             self._pool_outputs = np.empty((self._pool_max,) + outputs.shape[1:])
 
