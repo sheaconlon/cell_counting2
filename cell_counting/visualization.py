@@ -162,7 +162,9 @@ def plot_lines(xs, sets_of_ys, title, x_label, y_label, line_labels, height,
         plt.savefig(path, dpi='figure', format='svg')
     plt.close()
 
-def plot_scatter(xs, ys, title, x_label, y_label, height, width):
+
+def plot_scatter(xs, ys, title, x_label, y_label, height, width, colors=None,
+                 path=None):
     """Make a scatterplot.
 
     Args:
@@ -173,12 +175,20 @@ def plot_scatter(xs, ys, title, x_label, y_label, height, width):
         y_label (str): The label for the y-axis.
         height (int): The height of the plot, in inches.
         width (int): The width of the plot, in inches.
+        colors (list of float): The colors. If omitted or ``None``, all black.
+        path (str): The path to save the plot to. If ``None`` or omitted, the
+            plot is shown.
     """
+    if colors is None:
+        colors = [1 for _ in xs]
     plt.close()
     plt.figure(figsize=(width, height), dpi=PLT_DPI)
     plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
-    plt.scatter(xs, ys)
-    plt.show()
+    plt.scatter(xs, ys, c=colors)
+    if path is None:
+        plt.show()
+    else:
+        plt.savefig(path, dpi='figure', format='svg')
     plt.close()
