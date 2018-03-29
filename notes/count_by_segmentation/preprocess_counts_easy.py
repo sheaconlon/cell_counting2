@@ -142,7 +142,8 @@ if __name__ == "__main__":
     MIN_SIZE = 1/200
     MAX_SIZE = 1/40
     NUM_SIZES = 20
-    SAMPLES = 10_000
+    SAMPLES = 10000
+    TQDM_PARAMS = {"desc": "variability curve", "unit": "curve", "total": 1}
 
     images, _ = data.get_all()
     min_dim, max_dim = min(images.shape[1:2]), max(images.shape[1:2])
@@ -154,9 +155,10 @@ if __name__ == "__main__":
         max_size_px += 1
     min_size_px = max(min_size_px, 3)
     max_size_px = min(max_size_px, min_dim)
-    sizes, var_vars = preprocess.patch_variability_curve(images, min_size_px,
-                                                         max_size_px, NUM_SIZES,
-                                                         SAMPLES)
+    with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
+        sizes, var_vars = preprocess.patch_variability_curve(images,
+            min_size_px, max_size_px, NUM_SIZES, SAMPLES)
+        progress_bar.update(1)
     path = os.path.join(figure_dir, "patch_variability.svg")
     visualization.plot_line(sizes, var_vars, "Patch Variability Curve",
                             "patch size (px)",

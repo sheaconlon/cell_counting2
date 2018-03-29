@@ -158,7 +158,8 @@ if __name__ == "__main__":
     MIN_SIZE = 1/200
     MAX_SIZE = 1/40
     NUM_SIZES = 20
-    SAMPLES = 10_000
+    SAMPLES = 10000
+    TQDM_PARAMS = {"desc": "variability curves", "unit": "curve"}
 
     images, _ = multicondition.get_all()
     min_dim, max_dim = min(images.shape[2:3]), max(images.shape[2:3])
@@ -170,9 +171,9 @@ if __name__ == "__main__":
         max_size_px += 1
     min_size_px = max(min_size_px, 3)
     max_size_px = min(max_size_px, min_dim)
-    for i, condition in enumerate(CONDITIONS):
+    for i, condition in tqdm.tqdm(enumerate(CONDITIONS), **TQDM_PARAMS):
         sizes, var_vars = preprocess.patch_variability_curve(images[:, i, ...],
-            min_size_px, max_size_px, NUM_SIZES, SAMPLES)
+                            min_size_px, max_size_px, NUM_SIZES, SAMPLES)
         filename = "patch_variability_{0:s}.svg".format(condition)
         path = os.path.join(figure_dir, filename)
         visualization.plot_line(sizes, var_vars, "Patch Variability Curve",
