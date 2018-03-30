@@ -74,7 +74,6 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    DATASET_SOURCE = "../../data/masks_and_counts/data"
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
@@ -90,7 +89,9 @@ if __name__ == "__main__":
 
         dataset_dir = os.path.join(args.outdir, "masks_and_counts_dataset")
         data = dataset.Dataset(dataset_dir, 1)
-        data.initialize_from_aspects(DATASET_SOURCE, transform_aspects)
+        dataset_source = os.path.join(repo_path, "data", "masks_and_counts",
+                                      "data")
+        data.initialize_from_aspects(dataset_source, transform_aspects)
 
     # ====================================
     # Make "images.svg" and "*_masks.svg".
