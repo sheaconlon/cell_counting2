@@ -1,4 +1,4 @@
-run: preprocess train
+run: preprocess train validate
 
 preprocess:
 	python3 ../preprocess_masks_and_counts.py -maxpatch 1000
@@ -9,6 +9,9 @@ preprocess:
 
 train:
 	python3 ../train.py
+
+validate:
+    python3 ../validate.py
 
 clean:
 	rm -rf preprocess_masks_and_counts_output
