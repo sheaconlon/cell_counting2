@@ -81,7 +81,8 @@ class BaseModel(object):
 
         with self._set_up_tf() as session:
             batch_iterable = dataset.get_batch_iterable(self.get_batch_size()
-                                                        * self._TRAIN_STEPS)
+                                                        * self._TRAIN_STEPS,
+                                                        epochs=True)
             do_round()
             callback()
             round_duration = 0
