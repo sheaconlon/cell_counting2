@@ -51,10 +51,10 @@ if __name__ == "__main__":
                         default="preprocess_masks_and_counts_output",
                         help="A path to a directory containing the output of "
                              "preprocess_masks_and_counts.py.")
-    parser.add_argument("-multiconditionpiecesdir", type=str, required=False,
-                        default="preprocess_multicondition_pieces_output",
+    parser.add_argument("-countseasydir", type=str, required=False,
+                        default="preprocess_counts_easy_output",
                         help="A path to a directory containing the output of "
-                             "preprocess_multicondition_pieces.py.")
+                             "preprocess_counts_easy.py.")
     parser.add_argument("-outdir", type=str, required=False,
                         default="train_output",
                         help="A path to a directory in which to save output."
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                         help="The number of examples to use for each metric "
                              "evaluation.")
     parser.add_argument("-duration", type=int, required=False,
-                        default=60 * 4,
+                        default=60 * 2,
                         help="The (approximate) number of minutes to train "
                              "for.")
     parser.add_argument("-metricinterval", type=int, required=False,
@@ -77,9 +77,10 @@ if __name__ == "__main__":
     # Load the dataset.
     # =================
     train_path = os.path.join(args.datadir, "masks_and_counts_train_dataset")
-    test_path = os.path.join(args.datadir, "masks_and_counts_test_dataset")
+    valid_path = os.path.join(args.datadir,
+                             "masks_and_counts_validation_dataset")
     train = dataset.Dataset(train_path)
-    test = dataset.Dataset(test_path)
+    valid = dataset.Dataset(valid_path)
 
     # =====================
     # Initialize the model.
@@ -97,10 +98,10 @@ if __name__ == "__main__":
     # =======================
     POOL_SIZE = 5
     NUM_CLASSES = 3
-    PATCH_BATCH_SIZE = 3000
+    PATCH_BATCH_SIZE = 100
     MIN_DIST_FRAC = 1 / 2
     MIN_DIAM_FRAC = 1 / 2
-    SAMPLING_TARGET = 400 # the original size of the pieces
+    SAMPLING_TARGET = 100 # the original size of the pieces
 
     def loss_fn(actual, predicted):
         loss = losses.make_cross_entropy_loss()(actual, predicted)
@@ -109,14 +110,14 @@ if __name__ == "__main__":
     def train_data_fn():
         return train.get_batch(args.metricexamples, POOL_SIZE)
 
-    def test_data_fn():
-        return test.get_batch(args.metricexamples, POOL_SIZE)
+    def valid_data_fn():
+        return valid.get_batch(args.metricexamples, POOL_SIZE)
 
-    path = os.path.join(args.multiconditionpiecesdir,
-                        "multicondition_pieces_dataset")
-    pieces_dataset = dataset.Dataset(path)
-    pieces_images, pieces_counts = pieces_dataset.get_all()
-    sampling_interval = int(pieces_images.shape[1] / SAMPLING_TARGET)
+    valid_counts_path = os.path.join(args.countseasydir,
+                        "counts_easy_validation_dataset")
+    valid_counts_data = dataset.Dataset(valid_counts_path)
+    valid_images, valid_counts = valid_counts_data.get_all()
+    sampling_interval = int(valid_images.shape[1] / SAMPLING_TARGET)
     min_dist = model.PATCH_SIZE * MIN_DIST_FRAC
     min_dist = max(1, int(min_dist / sampling_interval))
     min_diam = model.PATCH_SIZE * MIN_DIAM_FRAC
@@ -129,20 +130,20 @@ if __name__ == "__main__":
 
     def absolute_error(model):
         errors = []
-        for i in range(pieces_images.shape[0]):
-            predicted_count = postprocess.count_regions(pieces_images[i, ...],
+        for i in range(valid_images.shape[0]):
+            predicted_count = postprocess.count_regions(valid_images[i, ...],
                 model.PATCH_SIZE, patch_classifier, PATCH_BATCH_SIZE,
                 min_dist, min_diam, sampling_interval=sampling_interval)
-            errors.append(predicted_count - pieces_counts[i])
+            errors.append(predicted_count - valid_counts[i])
         return max(errors), sum(errors) / len(errors), min(errors)
 
     def relative_error(model):
         errors = []
-        for i in range(pieces_images.shape[0]):
-            predicted_count = postprocess.count_regions(pieces_images[i, ...],
+        for i in range(valid_images.shape[0]):
+            predicted_count = postprocess.count_regions(valid_images[i, ...],
                 model.PATCH_SIZE, patch_classifier, PATCH_BATCH_SIZE,
                 min_dist, min_diam, sampling_interval=sampling_interval)
-            error = (predicted_count - pieces_counts[i]) / pieces_counts[i]
+            error = (predicted_count - valid_counts[i]) / valid_counts[i]
             errors.append(error)
         return max(errors), sum(errors) / len(errors), min(errors)
 
@@ -150,16 +151,16 @@ if __name__ == "__main__":
     metrics = {
         "loss": metric.LossMetric(
             os.path.join(metric_path, "loss"),
-            [train_data_fn, test_data_fn], loss_fn),
+            [train_data_fn, valid_data_fn], loss_fn),
         "train_confusion_matrix": metric.ConfusionMatrixMetric(
             os.path.join(metric_path, "train_confusion_matrix"),
             train_data_fn, NUM_CLASSES),
-        "test_confusion_matrix": metric.ConfusionMatrixMetric(
-            os.path.join(metric_path, "test_confusion_matrix"),
-            test_data_fn, NUM_CLASSES),
+        "valid_confusion_matrix": metric.ConfusionMatrixMetric(
+            os.path.join(metric_path, "valid_confusion_matrix"),
+            valid_data_fn, NUM_CLASSES),
         "accuracy": metric.AccuracyMetric(
             os.path.join(metric_path, "accuracy"),
-            [train_data_fn, test_data_fn]),
+            [train_data_fn, valid_data_fn]),
         "absolute_error": metric.DistributionMetric(
             os.path.join(metric_path, "absolute_error"), absolute_error),
         "relative_error": metric.DistributionMetric(
@@ -192,21 +193,21 @@ if __name__ == "__main__":
             metrics["train_confusion_matrix"].plot(
                 "Confusion Matrix for Training Batch", 5, 5, path=path)
             subprogress_bar.update(1)
-            path = os.path.join(iteration_path, "test_confusion_matrix.svg")
-            metrics["test_confusion_matrix"].plot(
-                "Confusion Matrix for Test Batch", 5, 5, path=path)
+            path = os.path.join(iteration_path, "valid_confusion_matrix.svg")
+            metrics["valid_confusion_matrix"].plot(
+                "Confusion Matrix for Validation Batch", 5, 5, path=path)
             subprogress_bar.update(1)
             path = os.path.join(iteration_path, "loss.svg")
             metrics["loss"].plot("Loss",
                 "number of training iterations", "loss",
-                ["loss on training batch", "loss on test batch"], 4, 10,
+                ["loss on training batch", "loss on validation batch"], 4, 10,
                 path=path)
             subprogress_bar.update(1)
             path = os.path.join(iteration_path, "accuracy.svg")
             metrics["accuracy"].plot("Accuracy",
                 "number of training iterations",
                 "proportion of examples correctly classified",
-                ["in training batch", "in test batch"], 4, 10, path=path)
+                ["in training batch", "in validation batch"], 4, 10, path=path)
             subprogress_bar.update(1)
             path = os.path.join(iteration_path, "absolute_error.svg")
             metrics["absolute_error"].plot("Absolute Error",
