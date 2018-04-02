@@ -60,7 +60,7 @@ if __name__ == "__main__":
                         default="validate_output",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-countsize", type=int, required=False, default=2448,
+    parser.add_argument("-countsize", type=int, required=False, default=1024,
                         help="The size to scale the largest dimension of the"
                              "counts_easy images to when counting them.")
     parser.add_argument("-mindistratio", type=float, required=False,
@@ -89,6 +89,10 @@ if __name__ == "__main__":
             if valid_loss < best_valid_loss:
                 # note: breaks tie by choosing earlier iteration
                 best_iter, best_valid_loss = iteration, valid_loss
+        f = open(os.path.join(args.outdir, "best_iteration.csv"), "w+")
+        f.write(str(best_iter))
+        f.write("\n")
+        f.close()
         model_path = os.path.join(args.traindir, str(best_iter), "model_save")
         model = convnet1.ConvNet1(model_path, SAVE_INTERVAL, 0)
         progress_bar.update(1)
@@ -97,7 +101,7 @@ if __name__ == "__main__":
     # Validate using masks_and_counts.
     # ================================
     BATCH_SIZE = 3000
-    POOL_SIZE = 3
+    POOL_SIZE = 10
 
     def loss_fn(actual, predicted):
         loss = losses.make_cross_entropy_loss()(actual, predicted)
@@ -107,17 +111,19 @@ if __name__ == "__main__":
                         "masks_and_counts_validation_dataset")
     masks_counts = dataset.Dataset(path)
     all_actual, all_predicted = [], []
-    batches = masks_counts.get_batch_iterable(BATCH_SIZE, POOL_SIZE,
+    batch_size = min(BATCH_SIZE, masks_counts.size())
+    batches = masks_counts.get_batch_iterable(batch_size, POOL_SIZE,
                                               epochs=True)
 
     with tqdm.tqdm(desc="validate using masks_and_counts", unit="examples",
                    total=masks_counts.size()) as progress_bar:
+        inputs, actual = next(batches)
         while batches._epoch == 1:
-            inputs, actual = next(batches)
             predicted = model.predict(inputs)
             all_actual.append(actual)
             all_predicted.append(predicted)
-            progress_bar.update(BATCH_SIZE)
+            progress_bar.update(inputs.shape[0])
+            inputs, actual = next(batches)
 
     actual = np.concatenate(all_actual, axis=0)
     predicted = np.concatenate(all_predicted, axis=0)
@@ -135,6 +141,7 @@ if __name__ == "__main__":
     def patch_classifier(patches):
         patches = preprocess.subtract_mean_normalize(patches)
         scores = model.predict(patches)
+        subprogress_bar.update(patches.shape[0])
         return scores
 
     path = os.path.join(args.countseasydir, "counts_easy_validation_dataset")
@@ -153,9 +160,13 @@ if __name__ == "__main__":
     with tqdm.tqdm(desc="validate using counts_easy", unit="examples",
                    total=counts_easy.size()) as progress_bar:
         for i in range(images.shape[0]):
-            predicted[i] = postprocess.count_regions(
-                images[i, ...], model.PATCH_SIZE, patch_classifier, BATCH_SIZE,
-                min_dist, min_diam, sampling_interval=sampling_interval)
+            num_patches = (images[i, ...].shape[0] // sampling_interval) * \
+                          (images[i, ...].shape[1] // sampling_interval)
+            with tqdm.tqdm(desc="classify patches", unit="patches",
+                           total=num_patches) as subprogress_bar:
+                predicted[i] = postprocess.count_regions(
+                    images[i, ...], model.PATCH_SIZE, patch_classifier, BATCH_SIZE,
+                    min_dist, min_diam, sampling_interval=sampling_interval)
             absolute_error_sum += predicted[i] - actual[i]
             relative_error_sum += (predicted[i] - actual[i]) / actual[i]
             progress_bar.update(1)
