@@ -21,6 +21,7 @@ setup(
     'tensorflow',
     'scikit-image',
     'matplotlib',
-    'imageio'
+    'imageio',
+    'tqdm'
   ]
 )
