@@ -10,6 +10,7 @@ class BaseModel(object):
     _LOG_STEPS = 500
     _TRAIN_STEPS = 50
     _SECS_PER_MIN = 60
+    _PREDICT_BATCH_SIZE = 3000
 
     def __init__(self, save_dir, chkpt_save_interval, loss_fn,
             optimizer_factory):
@@ -109,12 +110,12 @@ class BaseModel(object):
             (np.ndarray): The predicted outputs.
         """
         with self._set_up_tf() as session:
-            data_fn = tf.estimator.inputs.numpy_input_fn({"inputs":inputs},
-                None, inputs.shape[0], 1, shuffle=False,
-                queue_capacity=inputs.shape[0])
-            return np.stack(list(itertools.islice(
-                self._estimator.predict(data_fn), inputs.shape[0])), axis=0)
-        session.close()
+            data_fn = tf.estimator.inputs.numpy_input_fn(
+                {"inputs": inputs}, None, self._PREDICT_BATCH_SIZE, 1,
+                shuffle=False, queue_capacity=inputs.shape[0])
+            predictions = self._estimator.predict(data_fn)
+            predictions = list(itertools.islice(predictions, inputs.shape[0]))
+        return np.stack(predictions, axis=0)
 
     def evaluate(self, metrics):
         """Evaluate some metrics about the model.
