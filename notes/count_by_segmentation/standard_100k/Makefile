@@ -11,7 +11,7 @@ train:
 	python3 ../train.py
 
 validate:
-    python3 ../validate.py
+	python3 ../validate.py
 
 clean:
 	rm -rf preprocess_masks_and_counts_output
