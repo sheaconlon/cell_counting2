@@ -40,7 +40,15 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
             purposes. False by default.
 
     Returns:
-        (int) The number of regions in the image.
+        (int, tuple(int, dict)) If ``debug`` is ``False``, the number of
+        regions in the image. If ``debug`` is ``True``, a tuple whose first
+        element is the number of regions in the image and whose second
+        element is a dictionary. This dictionary contains the original image
+        under the key ``"original"``, the inside mask produced by the classifier
+        under the key ``"inside"``, the distance-transformed image under the key
+        ``"distance"``, the peak-identified image under the key ``"peak"``,
+        the marker-labeled image under the key ``"marker"``, and the final label
+        image under the key ``"label"``.
     """
     RGB_MAX = 255
     DEBUG_PLOT_DIMS = (8, 8)
@@ -56,10 +64,6 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
     patch_batch = np.zeros((batch_size, patch_size, patch_size, image.shape[2]))
     patch_num = 0
     classes = []
-
-    if debug:
-        visualization.plot_images(image[np.newaxis, ...], 1, DEBUG_PLOT_DIMS,
-                                  "image")
 
     def classify_batch(n):
         probs = patch_classifier(patch_batch[:n, ...])
@@ -88,33 +92,23 @@ def count_regions(image, patch_size, patch_classifier, batch_size, min_dist,
             if classes[patch_num] == INSIDE_CLASS:
                 inside_image[y, x] = True
             patch_num += 1
-    if debug:
-        visualization.plot_images(inside_image[np.newaxis, ...], 1,
-                                  DEBUG_PLOT_DIMS, "inside")
 
     dist_image = ndimage.morphology.distance_transform_edt(inside_image)
-    if debug:
-        visualization.plot_images(dist_image[np.newaxis, ...], 1,
-                                  DEBUG_PLOT_DIMS, "distance")
 
     peak_image = feature.corner_peaks(dist_image, min_distance=min_dist,
         threshold_abs=min_diam/2, indices=False)
     peak_image = peak_image.astype(int)
-    if debug:
-        visualization.plot_images(peak_image[np.newaxis, ...], 1,
-                                  DEBUG_PLOT_DIMS, "peak")
 
     marker_image, _ = ndimage.label(peak_image)
-    if debug:
-        visualization.plot_images(marker_image[np.newaxis, ...], 1,
-                                  DEBUG_PLOT_DIMS, "marker")
 
     label_image = morphology.watershed(-dist_image, marker_image,
                                        mask=inside_image)
-    if debug:
-        visualization.plot_images(label_image[np.newaxis, ...]
-                                  , 1,
-                                  DEBUG_PLOT_DIMS, "label")
 
     labels = np.unique(label_image)
-    return labels.shape[0] - 1
+    count = labels.shape[0] - 1
+    if debug:
+        return (count, {"original": image, "inside": inside_image,
+                        "distance": dist_image, "peak": peak_image,
+                        "marker": marker_image, "label": label_image})
+    else:
+        return count
