@@ -52,25 +52,25 @@ if __name__ == "__main__":
                         default="preprocess_masks_and_counts_output",
                         help="A path to a directory containing the output of "
                              "preprocess_masks_and_counts.py.")
-    parser.add_argument("-countseasydir", type=str, required=False,
-                        default="preprocess_counts_easy_output",
-                        help="A path to a directory containing the output of "
-                             "preprocess_counts_easy.py.")
+    # parser.add_argument("-countseasydir", type=str, required=False,
+    #                     default="preprocess_counts_easy_output",
+    #                     help="A path to a directory containing the output of "
+    #                          "preprocess_counts_easy.py.")
     parser.add_argument("-outdir", type=str, required=False,
                         default="validate_output",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-countsize", type=int, required=False, default=1024,
-                        help="The size to scale the largest dimension of the"
-                             "counts_easy images to when counting them.")
-    parser.add_argument("-mindistratio", type=float, required=False,
-                        default=1/2,
-                        help="The ratio between the minimum distance required"
-                             " between colonies and the colony size.")
-    parser.add_argument("-mindiamratio", type=float, required=False,
-                        default=1/2,
-                        help="The ratio between the minimum diameter required"
-                             " of colonies and the colony size.")
+    # parser.add_argument("-countsize", type=int, required=False, default=1024,
+    #                     help="The size to scale the largest dimension of the"
+    #                          "counts_easy images to when counting them.")
+    # parser.add_argument("-mindistratio", type=float, required=False,
+    #                     default=1/2,
+    #                     help="The ratio between the minimum distance required"
+    #                          " between colonies and the colony size.")
+    # parser.add_argument("-mindiamratio", type=float, required=False,
+    #                     default=1/2,
+    #                     help="The ratio between the minimum diameter required"
+    #                          " of colonies and the colony size.")
     args = parser.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
 
@@ -136,52 +136,52 @@ if __name__ == "__main__":
     # ===========================
     # Validate using counts_easy.
     # ===========================
-    BATCH_SIZE = 3000
-
-    def patch_classifier(patches):
-        patches = preprocess.subtract_mean_normalize(patches)
-        scores = model.predict(patches)
-        subprogress_bar.update(patches.shape[0])
-        return scores
-
-    path = os.path.join(args.countseasydir, "counts_easy_validation_dataset")
-    counts_easy = dataset.Dataset(path)
-    images, actual = counts_easy.get_all()
-
-    sampling_interval = int(images.shape[1] / args.countsize)
-    min_dist = max(1, int(args.mindistratio * model.PATCH_SIZE /
-                          sampling_interval))
-    min_diam = args.mindiamratio * model.PATCH_SIZE / sampling_interval
-
-    predicted = np.empty_like(actual)
-    absolute_error_sum = 0
-    relative_error_sum = 0
-
-    with tqdm.tqdm(desc="validate using counts_easy", unit="examples",
-                   total=counts_easy.size()) as progress_bar:
-        for i in range(images.shape[0]):
-            num_patches = (images[i, ...].shape[0] // sampling_interval) * \
-                          (images[i, ...].shape[1] // sampling_interval)
-            with tqdm.tqdm(desc="classify patches", unit="patches",
-                           total=num_patches) as subprogress_bar:
-                predicted[i] = postprocess.count_regions(
-                    images[i, ...], model.PATCH_SIZE, patch_classifier, BATCH_SIZE,
-                    min_dist, min_diam, sampling_interval=sampling_interval)
-            absolute_error_sum += predicted[i] - actual[i]
-            relative_error_sum += (predicted[i] - actual[i]) / actual[i]
-            progress_bar.update(1)
-
-    path = os.path.join(args.outdir, "counts.svg")
-    visualization.plot_scatter(actual, predicted, "Counts",
-                               "Actual count (CFU)", "Predicted count (CFU)",
-                               4, 10, path=path)
-    absolute_error_avg = absolute_error_sum / images.shape[0]
-    relative_error_avg = relative_error_sum / images.shape[0]
-    f = open(os.path.join(args.outdir, "absolute_error_average.csv"), "w+")
-    f.write(str(absolute_error_avg))
-    f.write("\n")
-    f.close()
-    f = open(os.path.join(args.outdir, "relative_error_average.csv"), "w+")
-    f.write(str(relative_error_avg))
-    f.write("\n")
-    f.close()
+    # BATCH_SIZE = 3000
+    #
+    # def patch_classifier(patches):
+    #     patches = preprocess.subtract_mean_normalize(patches)
+    #     scores = model.predict(patches)
+    #     subprogress_bar.update(patches.shape[0])
+    #     return scores
+    #
+    # path = os.path.join(args.countseasydir, "counts_easy_validation_dataset")
+    # counts_easy = dataset.Dataset(path)
+    # images, actual = counts_easy.get_all()
+    #
+    # sampling_interval = int(images.shape[1] / args.countsize)
+    # min_dist = max(1, int(args.mindistratio * model.PATCH_SIZE /
+    #                       sampling_interval))
+    # min_diam = args.mindiamratio * model.PATCH_SIZE / sampling_interval
+    #
+    # predicted = np.empty_like(actual)
+    # absolute_error_sum = 0
+    # relative_error_sum = 0
+    #
+    # with tqdm.tqdm(desc="validate using counts_easy", unit="examples",
+    #                total=counts_easy.size()) as progress_bar:
+    #     for i in range(images.shape[0]):
+    #         num_patches = (images[i, ...].shape[0] // sampling_interval) * \
+    #                       (images[i, ...].shape[1] // sampling_interval)
+    #         with tqdm.tqdm(desc="classify patches", unit="patches",
+    #                        total=num_patches) as subprogress_bar:
+    #             predicted[i] = postprocess.count_regions(
+    #                 images[i, ...], model.PATCH_SIZE, patch_classifier, BATCH_SIZE,
+    #                 min_dist, min_diam, sampling_interval=sampling_interval)
+    #         absolute_error_sum += predicted[i] - actual[i]
+    #         relative_error_sum += (predicted[i] - actual[i]) / actual[i]
+    #         progress_bar.update(1)
+    #
+    # path = os.path.join(args.outdir, "counts.svg")
+    # visualization.plot_scatter(actual, predicted, "Counts",
+    #                            "Actual count (CFU)", "Predicted count (CFU)",
+    #                            4, 10, path=path)
+    # absolute_error_avg = absolute_error_sum / images.shape[0]
+    # relative_error_avg = relative_error_sum / images.shape[0]
+    # f = open(os.path.join(args.outdir, "absolute_error_average.csv"), "w+")
+    # f.write(str(absolute_error_avg))
+    # f.write("\n")
+    # f.close()
+    # f = open(os.path.join(args.outdir, "relative_error_average.csv"), "w+")
+    # f.write(str(relative_error_avg))
+    # f.write("\n")
+    # f.close()
