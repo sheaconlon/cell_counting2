@@ -67,11 +67,11 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    EASY_DATASET_PATH = "../../data/counts_multicondition"
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
+    easy_dataset_path = os.path.join(repo_path, "data", "counts_multicondition")
     data_path = os.path.join(args.outdir, "counts_multicondition_dataset")
-    loader_path = os.path.join(EASY_DATASET_PATH, "load.py")
+    loader_path = os.path.join(easy_dataset_path, "load.py")
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         multicondition = dataset.Dataset(data_path, 1)
         multicondition.load(loader_path)

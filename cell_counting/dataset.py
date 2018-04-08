@@ -272,7 +272,7 @@ class Dataset(object):
         """
         return self._segments * self._segment_size
 
-    def split(self, p, path_larger, path_smaller):
+    def split(self, p, path_larger, path_smaller, seed=None):
         """Split this dataset.
 
         The larger dataset will be given a segment size that is ``1 - p`` times
@@ -287,27 +287,37 @@ class Dataset(object):
                 larger part of the split.
             path_smaller (str): The path to a directory in which to store the
                 smaller part of the split.
+            seed (int): A number to seed the random number generator with before
+                randomly assigning examples to splits. With the same ``seed``,
+                two ``split`` operations should have the same effect.
 
         Returns:
             tuple(dataset.Dataset, dataset.Dataset): The two datasets that
             result from the split. The smaller one is last.
         """
-        larger = Dataset(path_larger, round(self._segment_size * (1 - p)))
-        smaller = Dataset(path_smaller, round(self._segment_size * p))
+        def new_segment_size(p):
+            return max(1, round(self._segment_size * p))
+
+        larger = Dataset(path_larger, new_segment_size(1 - p))
+        smaller = Dataset(path_smaller, new_segment_size(p))
 
         def example_generator(include_example):
+            i = 0
             for segment in range(self._segments):
                 inputs_path = self._get_segment_file_path(segment, "inputs.npy")
                 outputs_path = self._get_segment_file_path(segment,
                                                            "outputs.npy")
                 inputs = np.load(inputs_path)
                 outputs = np.load(outputs_path)
-                for i in range(inputs.shape[0]):
+                for segment_i in range(inputs.shape[0]):
                     if include_example(i):
-                        yield (inputs[i, ...], outputs[i, ...])
+                        yield (inputs[segment_i, ...], outputs[segment_i, ...])
+                    i += 1
 
         num_examples = self._segments * self._segment_size
         num_examples_smaller = round(num_examples * p)
+        if seed is not None:
+            random.seed(seed)
         chosen_for_smaller = set(random.sample(range(num_examples),
                                                num_examples_smaller))
 
@@ -520,10 +530,12 @@ class Dataset(object):
             chosen = np.random.choice(self._pool_top + 1, self._batch_size)
             inputs = self._pool_inputs[chosen, ...]
             outputs = self._pool_outputs[chosen, ...]
-            new_inputs = np.delete(self._pool_inputs, chosen, axis=0)
+            new_inputs = np.delete(self._pool_inputs[:self._pool_top, ...],
+                                   chosen, axis=0)
+            new_outputs = np.delete(self._pool_outputs[:self._pool_top, ...],
+                                    chosen, axis=0)
             self._pool_top = new_inputs.shape[0]
             self._pool_inputs[:self._pool_top, ...] = new_inputs
-            new_outputs = np.delete(self._pool_outputs, chosen, axis=0)
             self._pool_outputs[:self._pool_top, ...] = new_outputs
             return inputs, outputs
 

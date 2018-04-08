@@ -6,6 +6,7 @@ Does the following:
 3. Extracts patches from the images.
 4. Normalizes the patches.
 5. One-hot encodes the classes.
+6. Splits the dataset into training and validation sets.
 
 Produces the following plots:
 1. images.svg, inside_masks.svg, edge_masks.svg, outside_masks.svg
@@ -74,7 +75,6 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    DATASET_SOURCE = "../../data/masks_and_counts/data"
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
@@ -90,7 +90,9 @@ if __name__ == "__main__":
 
         dataset_dir = os.path.join(args.outdir, "masks_and_counts_dataset")
         data = dataset.Dataset(dataset_dir, 1)
-        data.initialize_from_aspects(DATASET_SOURCE, transform_aspects)
+        dataset_source = os.path.join(repo_path, "data", "masks_and_counts",
+                                      "data")
+        data.initialize_from_aspects(dataset_source, transform_aspects)
 
     # ====================================
     # Make "images.svg" and "*_masks.svg".
@@ -246,15 +248,16 @@ if __name__ == "__main__":
     with tqdm.tqdm(**tqdm_params) as progress_bar:
         data.map_batch(one_hot_encode_classes)
 
-    # ==============================================
-    # Split the dataset into training and test sets.
-    # ==============================================
+    # ====================================================
+    # Split the dataset into training and validation sets.
+    # ====================================================
     TEST_P = 0.1
     TRAIN_SAVE_PATH = os.path.join(args.outdir,
                                    "masks_and_counts_train_dataset")
-    TEST_SAVE_PATH = os.path.join(args.outdir, "masks_and_counts_test_dataset")
+    VALID_SAVE_PATH = os.path.join(args.outdir,
+                                  "masks_and_counts_validation_dataset")
 
     with tqdm.tqdm(desc="split dataset", total=1) as progress_bar:
-        train, test = data.split(TEST_P, TRAIN_SAVE_PATH, TEST_SAVE_PATH)
+        train, test = data.split(TEST_P, TRAIN_SAVE_PATH, VALID_SAVE_PATH)
         data.delete()
         progress_bar.update(1)

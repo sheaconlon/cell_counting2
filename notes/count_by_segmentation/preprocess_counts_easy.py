@@ -3,6 +3,7 @@
 Does the following:
 1. Resizes the images.
 2. Normalizes the images.
+3. Splits the dataset into validation and test sets.
 
 Produces the following plots:
 1. plates.svg
@@ -64,11 +65,11 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    EASY_DATASET_PATH = "../../data/counts_easy"
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
+    easy_dataset_path = os.path.join(repo_path, "data", "counts_easy")
     data_path = os.path.join(args.outdir, "counts_easy_dataset")
-    loader_path = os.path.join(EASY_DATASET_PATH, "load.py")
+    loader_path = os.path.join(easy_dataset_path, "load.py")
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         data = dataset.Dataset(data_path, 1)
         data.load(loader_path)
@@ -163,3 +164,18 @@ if __name__ == "__main__":
     visualization.plot_line(sizes, var_vars, "Patch Variability Curve",
                             "patch size (px)",
                             "variance of patch variances", 4, 10, path=path)
+
+    # ====================================
+    # Split into validation and test sets.
+    # ====================================
+    TQDM_PARAMS = {"desc": "split dataset", "total": 1, "unit": "datasets"}
+    VALIDATION_PROP = 0.25
+    SPLIT_SEED = 42114
+
+    with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
+        data.split(VALIDATION_PROP,
+                   os.path.join(args.outdir, "counts_easy_test_dataset"),
+                   os.path.join(args.outdir, "counts_easy_validation_dataset"),
+                   seed=SPLIT_SEED)
+        data.delete()
+        progress_bar.update(1)
