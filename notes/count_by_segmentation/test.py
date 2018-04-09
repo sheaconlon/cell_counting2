@@ -1,5 +1,5 @@
-"""Tests the model using the ``masks_and_counts`` training/validation splits,
-    the ``counts_easy`` test split, ``counts_multicondition``, and ``more``.
+"""Tests the model using the ``easy_masked`` training/validation splits,
+    the ``easy`` test split, ``multi``, and ``more``.
 
 Produces the following plots.
 1. pixels/confusion_matrix.svg
@@ -31,7 +31,6 @@ sys.path.insert(0, root_relative_path)
 # Import from cell_counting.
 # ==========================
 from cell_counting import dataset, postprocess, visualization, preprocess
-from cell_counting import metric
 from models.segmentation.convnet1 import convnet1
 
 # ===============================
@@ -55,32 +54,32 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Validates the model using the validation splits of the'
                     'masks_and_counts and counts_easy datasets.')
-    parser.add_argument("-maskscountsdir", type=str, required=False,
-                        default="preprocess_masks_and_counts_output",
+    parser.add_argument("-easymaskeddir", type=str, required=False,
+                        default="preprocess_easy_masked",
                         help="A path to a directory containing the output of "
-                             "preprocess_masks_and_counts.py.")
-    parser.add_argument("-countseasydir", type=str, required=False,
-                        default="preprocess_counts_easy_output",
+                             "preprocess_easy_masked.py.")
+    parser.add_argument("-easydir", type=str, required=False,
+                        default="preprocess_easy",
                         help="A path to a directory containing the output of "
-                             "preprocess_counts_easy.py.")
-    parser.add_argument("-countsmulticonditiondir", type=str, required=False,
-                        default="preprocess_counts_multicondition_output",
+                             "preprocess_easy.py.")
+    parser.add_argument("-multidir", type=str, required=False,
+                        default="preprocess_multi",
                         help="A path to a directory containing the output of "
-                             "preprocess_counts_multicondition.py.")
+                             "preprocess_multi.py.")
     parser.add_argument("-moredir", type=str, required=False,
-                        default="preprocess_more_output",
+                        default="preprocess_more",
                         help="A path to a directory containing the output of "
                              "preprocess_more.py.")
     parser.add_argument("-traindir", type=str, required=False,
-                        default="train_output",
+                        default="train",
                         help="A path to a directory containing the output of "
                              "train.py.")
     parser.add_argument("-validatedir", type=str, required=False,
-                        default="validate_output",
+                        default="validate",
                         help="A path to a directory containing the output of "
                              "validate.py.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="test_output",
+                        default="test",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-countsize", type=int, required=False, default=1024,
@@ -105,26 +104,26 @@ if __name__ == "__main__":
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         masks_counts_train_path = os.path.join(args.maskscountsdir,
-                                  "masks_and_counts_train_dataset")
+                                  "easy_masked_train")
         masks_counts_train = dataset.Dataset(masks_counts_train_path)
         progress_bar.update(1)
 
         masks_counts_valid_path = os.path.join(args.maskscountsdir,
-                                 "masks_and_counts_validation_dataset")
+                                 "easy_masked_validation")
         masks_counts_valid = dataset.Dataset(masks_counts_valid_path)
         progress_bar.update(1)
 
         counts_easy_path = os.path.join(args.countseasydir,
-                                        "counts_easy_test_dataset")
+                                        "easy_test")
         counts_easy = dataset.Dataset(counts_easy_path)
         progress_bar.update(1)
 
         counts_multicondition_path = os.path.join(args.countsmulticonditiondir,
-                                                  "counts_multicondition_dataset")
+                                                  "multi")
         counts_multicondition = dataset.Dataset(counts_multicondition_path)
         progress_bar.update(1)
 
-        more_path = os.path.join(args.moredir, "more_dataset")
+        more_path = os.path.join(args.moredir, "more")
         more = dataset.Dataset(more_path)
         progress_bar.update(1)
 
@@ -195,12 +194,12 @@ if __name__ == "__main__":
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         images, counts = counts_easy.get_all()
-        make_predictions("counts_easy test split", images, counts)
+        make_predictions("easy test split", images, counts)
         progress_bar.update(1)
 
         image_sets, counts = counts_multicondition.get_all()
         for i, condition in enumerate(CONDITIONS):
-            name = "counts_multicondition {0:s} condition".format(condition)
+            name = "multi {0:s} condition".format(condition)
             images = image_sets[:, i, ...]
             make_predictions(name, images, counts)
             progress_bar.update(1)
@@ -289,11 +288,11 @@ if __name__ == "__main__":
                    unit="patch sizes", total=SIZES) as bar:
         for size in np.geomspace(min_size, max_size, SIZES):
             size = round(size)
-            subprocess.call(["python3", "../preprocess_masks_and_counts.py",
+            subprocess.call(["python3", "../preprocess_easy_masked.py",
                              "-maxpatch", str(PATCHES), "-patchsize",
                              str(size), "-outdir", "test_tmp"])
             data = dataset.Dataset(
-                "test_tmp/masks_and_counts_train_dataset")
+                "test_tmp/easy_masked_train")
             all_actual, all_predicted = [], []
             batch = min(BATCH, data.size())
             batches = data.get_batch_iterable(batch, POOL, epochs=True)

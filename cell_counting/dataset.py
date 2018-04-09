@@ -84,6 +84,8 @@ class Dataset(object):
         inputs, outputs = [], []
         with futures.ThreadPoolExecutor() as executor:
             for example in executor.map(get_example, os.scandir(path)):
+                if example is None:
+                    continue
                 inp, out = example
                 inputs.append(inp)
                 outputs.append(out)

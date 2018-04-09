@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Preprocess the more dataset.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="preprocess_more_output",
+                        default="preprocess_more",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-patchsize", type=float, required=False,
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # =================
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
-    data_path = os.path.join(args.outdir, "more_dataset")
+    data_path = os.path.join(args.outdir, "more")
     loader_path = os.path.join(repo_path, "data", "more", "load.py")
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         data = dataset.Dataset(data_path, 1)

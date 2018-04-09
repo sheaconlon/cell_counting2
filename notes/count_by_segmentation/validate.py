@@ -1,5 +1,5 @@
-"""Validates the model using the validation splits of the
-    ``masks_and_counts`` and ``counts_easy`` datasets.
+"""Validates the model using the validation splits of the ``easy_masked``
+    dataset.
 
 Does the following.
 1. Loads the loss metric of the final metric evaluation. Uses its data to
@@ -21,8 +21,7 @@ sys.path.insert(0, root_path)
 # ==========================
 # Import from cell_counting.
 # ==========================
-from cell_counting import metric, dataset, losses, utilities, preprocess
-from cell_counting import postprocess, visualization
+from cell_counting import metric, dataset, losses, utilities
 from models.segmentation.convnet1 import convnet1
 
 # ===============================
@@ -42,35 +41,20 @@ if __name__ == "__main__":
     # Process command-line arguments.
     # ===============================
     parser = argparse.ArgumentParser(
-        description='Validates the model using the validation splits of the'
-                    'masks_and_counts and counts_easy datasets.')
+        description='Validates the model using the validation split of the'
+                    'easy_masked dataset.')
     parser.add_argument("-traindir", type=str, required=False,
-                        default="train_output",
+                        default="train",
                         help="A path to a directory containing the output of "
                              "train.py.")
-    parser.add_argument("-maskscountsdir", type=str, required=False,
-                        default="preprocess_masks_and_counts_output",
+    parser.add_argument("-easymaskeddir", type=str, required=False,
+                        default="preprocess_easy_masked",
                         help="A path to a directory containing the output of "
-                             "preprocess_masks_and_counts.py.")
-    # parser.add_argument("-countseasydir", type=str, required=False,
-    #                     default="preprocess_counts_easy_output",
-    #                     help="A path to a directory containing the output of "
-    #                          "preprocess_counts_easy.py.")
+                             "preprocess_easy_masked.py.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="validate_output",
+                        default="validate",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    # parser.add_argument("-countsize", type=int, required=False, default=1024,
-    #                     help="The size to scale the largest dimension of the"
-    #                          "counts_easy images to when counting them.")
-    # parser.add_argument("-mindistratio", type=float, required=False,
-    #                     default=1/2,
-    #                     help="The ratio between the minimum distance required"
-    #                          " between colonies and the colony size.")
-    # parser.add_argument("-mindiamratio", type=float, required=False,
-    #                     default=1/2,
-    #                     help="The ratio between the minimum diameter required"
-    #                          " of colonies and the colony size.")
     args = parser.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
 
@@ -107,15 +91,14 @@ if __name__ == "__main__":
         loss = losses.make_cross_entropy_loss()(actual, predicted)
         return utilities.tensor_eval(loss)
 
-    path = os.path.join(args.maskscountsdir,
-                        "masks_and_counts_validation_dataset")
+    path = os.path.join(args.maskscountsdir, "easy_masked_validation")
     masks_counts = dataset.Dataset(path)
     all_actual, all_predicted = [], []
     batch_size = min(BATCH_SIZE, masks_counts.size())
     batches = masks_counts.get_batch_iterable(batch_size, POOL_SIZE,
                                               epochs=True)
 
-    with tqdm.tqdm(desc="validate using masks_and_counts", unit="examples",
+    with tqdm.tqdm(desc="validate using easy_masked", unit="examples",
                    total=masks_counts.size()) as progress_bar:
         inputs, actual = next(batches)
         while batches._epoch == 1:
@@ -132,56 +115,3 @@ if __name__ == "__main__":
     f.write(str(float(loss)))
     f.write("\n")
     f.close()
-
-    # ===========================
-    # Validate using counts_easy.
-    # ===========================
-    # BATCH_SIZE = 3000
-    #
-    # def patch_classifier(patches):
-    #     patches = preprocess.subtract_mean_normalize(patches)
-    #     scores = model.predict(patches)
-    #     subprogress_bar.update(patches.shape[0])
-    #     return scores
-    #
-    # path = os.path.join(args.countseasydir, "counts_easy_validation_dataset")
-    # counts_easy = dataset.Dataset(path)
-    # images, actual = counts_easy.get_all()
-    #
-    # sampling_interval = int(images.shape[1] / args.countsize)
-    # min_dist = max(1, int(args.mindistratio * model.PATCH_SIZE /
-    #                       sampling_interval))
-    # min_diam = args.mindiamratio * model.PATCH_SIZE / sampling_interval
-    #
-    # predicted = np.empty_like(actual)
-    # absolute_error_sum = 0
-    # relative_error_sum = 0
-    #
-    # with tqdm.tqdm(desc="validate using counts_easy", unit="examples",
-    #                total=counts_easy.size()) as progress_bar:
-    #     for i in range(images.shape[0]):
-    #         num_patches = (images[i, ...].shape[0] // sampling_interval) * \
-    #                       (images[i, ...].shape[1] // sampling_interval)
-    #         with tqdm.tqdm(desc="classify patches", unit="patches",
-    #                        total=num_patches) as subprogress_bar:
-    #             predicted[i] = postprocess.count_regions(
-    #                 images[i, ...], model.PATCH_SIZE, patch_classifier, BATCH_SIZE,
-    #                 min_dist, min_diam, sampling_interval=sampling_interval)
-    #         absolute_error_sum += predicted[i] - actual[i]
-    #         relative_error_sum += (predicted[i] - actual[i]) / actual[i]
-    #         progress_bar.update(1)
-    #
-    # path = os.path.join(args.outdir, "counts.svg")
-    # visualization.plot_scatter(actual, predicted, "Counts",
-    #                            "Actual count (CFU)", "Predicted count (CFU)",
-    #                            4, 10, path=path)
-    # absolute_error_avg = absolute_error_sum / images.shape[0]
-    # relative_error_avg = relative_error_sum / images.shape[0]
-    # f = open(os.path.join(args.outdir, "absolute_error_average.csv"), "w+")
-    # f.write(str(absolute_error_avg))
-    # f.write("\n")
-    # f.close()
-    # f = open(os.path.join(args.outdir, "relative_error_average.csv"), "w+")
-    # f.write(str(relative_error_avg))
-    # f.write("\n")
-    # f.close()

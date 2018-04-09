@@ -1,4 +1,4 @@
-"""Trains ``models/segmentation/convnet1`` on the ``counts_and_masks`` dataset.
+"""Trains ``models/segmentation/convnet1`` on the ``easy_masked`` dataset.
 
 Produces the following plots, where * is a number of training iterations:
 1. */train_confusion_matrix.svg
@@ -45,18 +45,14 @@ if __name__ == "__main__":
     # Process command-line arguments.
     # ===============================
     parser = argparse.ArgumentParser(
-        description='Train models/segmentation/convnet1 on the '
-                    'counts_and_masks dataset.')
-    parser.add_argument("-datadir", type=str, required=False,
-                        default="preprocess_masks_and_counts_output",
+        description='Train models/segmentation/convnet1 on the easy_masked'
+                    ' dataset.')
+    parser.add_argument("-easymaskeddir", type=str, required=False,
+                        default="preprocess_easy_masked",
                         help="A path to a directory containing the output of "
-                             "preprocess_masks_and_counts.py.")
-    parser.add_argument("-countseasydir", type=str, required=False,
-                        default="preprocess_counts_easy_output",
-                        help="A path to a directory containing the output of "
-                             "preprocess_counts_easy.py.")
+                             "preprocess_easy_masked.py.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="train_output",
+                        default="train",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-metricexamples", type=int, required=False,
@@ -71,25 +67,13 @@ if __name__ == "__main__":
                         default=6,
                         help="The (approximate) number of minutes to train "
                              "between metric evaluations.")
-    parser.add_argument("-countsize", type=int, required=False, default=1024,
-                        help="The size to scale the largest dimension of the"
-                             "counts_easy images to when counting them.")
-    parser.add_argument("-mindistratio", type=float, required=False,
-                        default=0.5,
-                        help="The ratio between the minimum distance required"
-                             " between colonies and the colony size.")
-    parser.add_argument("-mindiamratio", type=float, required=False,
-                        default=0.5,
-                        help="The ratio between the minimum diameter required"
-                             " of colonies and the colony size.")
     args = parser.parse_args()
 
     # =================
     # Load the dataset.
     # =================
-    train_path = os.path.join(args.datadir, "masks_and_counts_train_dataset")
-    valid_path = os.path.join(args.datadir,
-                             "masks_and_counts_validation_dataset")
+    train_path = os.path.join(args.easymaskeddir, "easy_masked_train")
+    valid_path = os.path.join(args.easymaskeddir, "easy_masked_validation")
     train = dataset.Dataset(train_path)
     valid = dataset.Dataset(valid_path)
 
@@ -122,39 +106,10 @@ if __name__ == "__main__":
     def valid_data_fn():
         return valid.get_batch(args.metricexamples, POOL_SIZE)
 
-    # valid_counts_path = os.path.join(args.countseasydir,
-    #                     "counts_easy_validation_dataset")
-    # valid_counts_data = dataset.Dataset(valid_counts_path)
-    # valid_images, valid_counts = valid_counts_data.get_all()
-    # sampling_interval = int(valid_images.shape[1] / args.countsize)
-    # min_dist = model.PATCH_SIZE * args.mindistratio
-    # min_dist = max(1, int(min_dist / sampling_interval))
-    # min_diam = model.PATCH_SIZE * args.mindiamratio
-    # min_diam = min_diam / sampling_interval
-
     def patch_classifier(patches):
         patches = preprocess.subtract_mean_normalize(patches)
         scores = model.predict(patches)
         return scores
-
-    # def absolute_error(model):
-    #     errors = []
-    #     for i in range(valid_images.shape[0]):
-    #         predicted_count = postprocess.count_regions(valid_images[i, ...],
-    #             model.PATCH_SIZE, patch_classifier, PATCH_BATCH_SIZE,
-    #             min_dist, min_diam, sampling_interval=sampling_interval)
-    #         errors.append(predicted_count - valid_counts[i])
-    #     return max(errors), sum(errors) / len(errors), min(errors)
-    #
-    # def relative_error(model):
-    #     errors = []
-    #     for i in range(valid_images.shape[0]):
-    #         predicted_count = postprocess.count_regions(valid_images[i, ...],
-    #             model.PATCH_SIZE, patch_classifier, PATCH_BATCH_SIZE,
-    #             min_dist, min_diam, sampling_interval=sampling_interval)
-    #         error = (predicted_count - valid_counts[i]) / valid_counts[i]
-    #         errors.append(error)
-    #     return max(errors), sum(errors) / len(errors), min(errors)
 
     metric_path = os.path.join(args.outdir, "metrics")
     metrics = {
@@ -170,10 +125,6 @@ if __name__ == "__main__":
         "accuracy": metric.AccuracyMetric(
             os.path.join(metric_path, "accuracy"),
             [train_data_fn, valid_data_fn]),
-        # "absolute_error": metric.DistributionMetric(
-        #     os.path.join(metric_path, "absolute_error"), absolute_error),
-        # "relative_error": metric.DistributionMetric(
-        #     os.path.join(metric_path, "relative_error"), relative_error)
     }
 
     # ==================================================================
@@ -218,18 +169,6 @@ if __name__ == "__main__":
                 "proportion of examples correctly classified",
                 ["in training batch", "in validation batch"], 4, 10, path=path)
             subprogress_bar.update(1)
-            # path = os.path.join(iteration_path, "absolute_error.svg")
-            # metrics["absolute_error"].plot("Absolute Error",
-            #     "number of training iterations", "error in count",
-            #     ["most positive error", "mean error", "most negative error"],
-            #     4, 10, path=path)
-            # subprogress_bar.update(1)
-            # path = os.path.join(iteration_path, "relative_error.svg")
-            # metrics["relative_error"].plot("Relative Error",
-            #     "number of training iterations", "error in count",
-            #     ["most positive error", "mean error", "most negative error"],
-            #     4, 10, path=path)
-            # subprogress_bar.update(1)
 
     def callback():
         TQDM_PARAMS = {"desc": "evaluate model", "unit": "model", "total": 1,

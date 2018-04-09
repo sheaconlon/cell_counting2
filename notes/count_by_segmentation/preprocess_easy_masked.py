@@ -1,4 +1,4 @@
-"""Preprocesses the ``masks_and_counts`` dataset.
+"""Preprocesses the ``easy_masked`` dataset.
 
 Does the following:
 1. Resizes the images.
@@ -18,7 +18,7 @@ Produces the following plots:
 
 Saves the resulting `Dataset`s.
 
-Run ``python preprocess_masks_and_counts.py -h`` to see usage details.
+Run ``python preprocess_easy_masked.py -h`` to see usage details.
 """
 
 # ========================================
@@ -51,10 +51,10 @@ if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
-    parser = argparse.ArgumentParser(description="Preprocess the masks_and_counts"
+    parser = argparse.ArgumentParser(description="Preprocess the easy_masked"
                                                  "dataset.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="preprocess_masks_and_counts_output",
+                        default="preprocess_easy_masked",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-patchsize", type=float, required=False,
@@ -85,14 +85,13 @@ if __name__ == "__main__":
             mask_channels = (aspects["inside"], aspects["edge"],
                              aspects["outside"])
             mask = np.stack(mask_channels, axis=2)
-            progress_bar.update(1)
             return (image, mask)
 
-        dataset_dir = os.path.join(args.outdir, "masks_and_counts_dataset")
+        dataset_dir = os.path.join(args.outdir, "easy_masked")
         data = dataset.Dataset(dataset_dir, 1)
-        dataset_source = os.path.join(repo_path, "data", "masks_and_counts",
-                                      "data")
+        dataset_source = os.path.join(repo_path, "data", "easy_masked", "data")
         data.initialize_from_aspects(dataset_source, transform_aspects)
+        progress_bar.update(1)
 
     # ====================================
     # Make "images.svg" and "*_masks.svg".
@@ -252,10 +251,8 @@ if __name__ == "__main__":
     # Split the dataset into training and validation sets.
     # ====================================================
     TEST_P = 0.1
-    TRAIN_SAVE_PATH = os.path.join(args.outdir,
-                                   "masks_and_counts_train_dataset")
-    VALID_SAVE_PATH = os.path.join(args.outdir,
-                                  "masks_and_counts_validation_dataset")
+    TRAIN_SAVE_PATH = os.path.join(args.outdir, "easy_masked_train")
+    VALID_SAVE_PATH = os.path.join(args.outdir, "easy_masked_validation")
 
     with tqdm.tqdm(desc="split dataset", total=1) as progress_bar:
         train, test = data.split(TEST_P, TRAIN_SAVE_PATH, VALID_SAVE_PATH)

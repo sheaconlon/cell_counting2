@@ -1,4 +1,4 @@
-# `masks_and_counts` Dataset
+# `easy_masks` Dataset
 
 ## Summary
 

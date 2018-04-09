@@ -1,4 +1,4 @@
-"""Preprocesses the ``counts_easy`` dataset.
+"""Preprocesses the ``easy`` dataset.
 
 Does the following:
 1. Resizes the images.
@@ -13,7 +13,7 @@ Produces the following plots:
 
 Saves the resulting `Dataset`s.
 
-Run ``python preprocess_counts_easy.py -h`` to see usage details.
+Run ``python preprocess_easy.py -h`` to see usage details.
 """
 
 # ========================================
@@ -45,10 +45,9 @@ if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
-    parser = argparse.ArgumentParser(description="Preprocess the counts_easy"
-                                                 " dataset.")
+    parser = argparse.ArgumentParser(description="Preprocess the easy dataset.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="preprocess_counts_easy_output",
+                        default="preprocess_easy",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-patchsize", type=float, required=False,
@@ -67,8 +66,8 @@ if __name__ == "__main__":
     # =================
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
-    easy_dataset_path = os.path.join(repo_path, "data", "counts_easy")
-    data_path = os.path.join(args.outdir, "counts_easy_dataset")
+    easy_dataset_path = os.path.join(repo_path, "data", "easy")
+    data_path = os.path.join(args.outdir, "easy")
     loader_path = os.path.join(easy_dataset_path, "load.py")
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         data = dataset.Dataset(data_path, 1)
@@ -174,8 +173,8 @@ if __name__ == "__main__":
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         data.split(VALIDATION_PROP,
-                   os.path.join(args.outdir, "counts_easy_test_dataset"),
-                   os.path.join(args.outdir, "counts_easy_validation_dataset"),
+                   os.path.join(args.outdir, "easy_test"),
+                   os.path.join(args.outdir, "easy_validation"),
                    seed=SPLIT_SEED)
         data.delete()
         progress_bar.update(1)
