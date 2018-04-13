@@ -47,10 +47,10 @@ if __name__ == "__main__":
                         default="train",
                         help="A path to a directory containing the output of "
                              "train.py.")
-    parser.add_argument("-easymaskeddir", type=str, required=False,
-                        default="preprocess_easy_masked",
+    parser.add_argument("-maskeddir", type=str, required=False,
+                        default="preprocess_masked",
                         help="A path to a directory containing the output of "
-                             "preprocess_easy_masked.py.")
+                             "preprocess_masked.py.")
     parser.add_argument("-outdir", type=str, required=False,
                         default="validate",
                         help="A path to a directory in which to save output."
@@ -91,14 +91,14 @@ if __name__ == "__main__":
         loss = losses.make_cross_entropy_loss()(actual, predicted)
         return utilities.tensor_eval(loss)
 
-    path = os.path.join(args.maskscountsdir, "easy_masked_validation")
+    path = os.path.join(args.maskscountsdir, "masked_validation")
     masks_counts = dataset.Dataset(path)
     all_actual, all_predicted = [], []
     batch_size = min(BATCH_SIZE, masks_counts.size())
     batches = masks_counts.get_batch_iterable(batch_size, POOL_SIZE,
                                               epochs=True)
 
-    with tqdm.tqdm(desc="validate using easy_masked", unit="examples",
+    with tqdm.tqdm(desc="validate using masked", unit="examples",
                    total=masks_counts.size()) as progress_bar:
         inputs, actual = next(batches)
         while batches._epoch == 1:

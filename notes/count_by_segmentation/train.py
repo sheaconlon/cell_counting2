@@ -1,4 +1,5 @@
-"""Trains ``models/segmentation/convnet1`` on the ``easy_masked`` dataset.
+"""Trains ``models/segmentation/convnet1`` on the ``easy_masked`` and
+    ``more_masked`` datasets.
 
 Produces the following plots, where * is a number of training iterations:
 1. */train_confusion_matrix.svg
@@ -47,10 +48,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Train models/segmentation/convnet1 on the easy_masked'
                     ' dataset.')
-    parser.add_argument("-easymaskeddir", type=str, required=False,
-                        default="preprocess_easy_masked",
+    parser.add_argument("-maskeddir", type=str, required=False,
+                        default="preprocess_masked",
                         help="A path to a directory containing the output of "
-                             "preprocess_easy_masked.py.")
+                             "preprocess_masked.py.")
     parser.add_argument("-outdir", type=str, required=False,
                         default="train",
                         help="A path to a directory in which to save output."
@@ -72,8 +73,8 @@ if __name__ == "__main__":
     # =================
     # Load the dataset.
     # =================
-    train_path = os.path.join(args.easymaskeddir, "easy_masked_train")
-    valid_path = os.path.join(args.easymaskeddir, "easy_masked_validation")
+    train_path = os.path.join(args.maskeddir, "masked_train")
+    valid_path = os.path.join(args.maskeddir, "masked_validation")
     train = dataset.Dataset(train_path)
     valid = dataset.Dataset(valid_path)
 
