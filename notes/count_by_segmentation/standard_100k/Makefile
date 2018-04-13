@@ -1,11 +1,10 @@
 run: preprocess train validate test
 
 preprocess:
-	python3 ../preprocess_masks_and_counts.py -maxpatch 100000
-	python3 ../preprocess_counts_easy.py
-	python3 ../preprocess_counts_multicondition.py
-	python3 ../preprocess_multicondition_pieces.py
-	python3 ../preprocess_more.py
+	python3.6 ../preprocess_masked.py -maxpatch 100000
+	python3.6 ../preprocess_easy.py
+	python3.6 ../preprocess_multi.py
+	python3.6 ../preprocess_more.py
 
 train:
 	python3 ../train.py
@@ -17,9 +16,10 @@ test:
 	python3 ../test.py
 
 clean:
-	rm -rf preprocess_masks_and_counts_output
-	rm -rf preprocess_counts_easy_output
-	rm -rf preprocess_counts_multicondition_output
-	rm -rf preprocess_multicondition_pieces_output
-	rm -rf preprocess_more_output
+	rm -rf preprocess_masked
+	rm -rf preprocess_easy
+	rm -rf preprocess_multi
+	rm -rf preprocess_more
 	rm -rf train_output
+	rm -rf validate_output
+	rm -rf test_output
