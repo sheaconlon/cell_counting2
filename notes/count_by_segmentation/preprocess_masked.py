@@ -1,4 +1,4 @@
-"""Preprocesses the ``easy_masked`` dataset.
+"""Preprocesses the ``easy_masked`` and ``more_masked`` datasets.
 
 Does the following:
 1. Resizes the images.
@@ -8,17 +8,17 @@ Does the following:
 5. One-hot encodes the classes.
 6. Splits the dataset into training and validation sets.
 
-Produces the following plots:
-1. images.svg, inside_masks.svg, edge_masks.svg, outside_masks.svg
-2. images_resized.svg, inside_masks_resized.svg, edge_masks_resized.svg,
-    outside_masks_resized.svg
-3. images_normalized.svg
+Produces the following plots, where * is one of "easy" or "more".
+1. */images.svg, */inside_masks.svg, */edge_masks.svg, */outside_masks.svg
+2. */images_resized.svg, */inside_masks_resized.svg, */edge_masks_resized.svg,
+    */outside_masks_resized.svg
+3. */images_normalized.svg
 4. patches.svg
 5. patches_normalized.svg
 
 Saves the resulting `Dataset`s.
 
-Run ``python preprocess_easy_masked.py -h`` to see usage details.
+Run ``python preprocess_masked.py -h`` to see usage details.
 """
 
 # ========================================
@@ -51,31 +51,39 @@ if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
     # ===============================
-    parser = argparse.ArgumentParser(description="Preprocess the easy_masked"
-                                                 "dataset.")
+    parser = argparse.ArgumentParser(description="Preprocess the masked"
+                                                 " dataset.")
     parser.add_argument("-outdir", type=str, required=False,
-                        default="preprocess_easy_masked",
+                        default="preprocess_masked",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-patchsize", type=float, required=False,
+    parser.add_argument("-easypatchsize", type=float, required=False,
                         default=43, help="The side length of the patches to"
-                                         " extract, in pixels.")
+                                         " extract from easy_masked, in"
+                                         " pixels.")
+    parser.add_argument("-morepatchsize", type=float, required=False,
+                        default=59, help="The side length of the patches to"
+                                        " extract from more_masked, in"
+                                        " pixels.")
     parser.add_argument("-maxpatch", type=int, required=False,
                         default=1000000, help="The maximum number of patches"
                                                 " to extract from each "
                                                 "example.")
     args = parser.parse_args()
 
-    # ======================
-    # Make figure directory.
-    # ======================
+    # ========================
+    # Make figure directories.
+    # ========================
     figure_dir = os.path.join(args.outdir, "figures")
-    os.makedirs(figure_dir, exist_ok=True)
+    path = os.path.join(figure_dir, "easy")
+    os.makedirs(path, exist_ok=True)
+    path = os.path.join(figure_dir, "more")
+    os.makedirs(path, exist_ok=True)
 
-    # =================
-    # Load the dataset.
-    # =================
-    TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
+    # ==================
+    # Load the datasets.
+    # ==================
+    TQDM_PARAMS = {"desc": "load datasets", "total": 2, "unit": "dataset"}
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         def transform_aspects(aspects):
@@ -87,40 +95,47 @@ if __name__ == "__main__":
             mask = np.stack(mask_channels, axis=2)
             return (image, mask)
 
-        dataset_dir = os.path.join(args.outdir, "easy_masked")
-        data = dataset.Dataset(dataset_dir, 1)
-        dataset_source = os.path.join(repo_path, "data", "easy_masked", "data")
-        data.initialize_from_aspects(dataset_source, transform_aspects)
+        path = os.path.join(args.outdir, "easy_masked")
+        easy_masked = dataset.Dataset(path, 1)
+        path = os.path.join(repo_path, "data", "easy_masked", "data")
+        easy_masked.initialize_from_aspects(path, transform_aspects)
+        progress_bar.update(1)
+
+        path = os.path.join(args.outdir, "more_masked")
+        more_masked = dataset.Dataset(path, 1)
+        path = os.path.join(repo_path, "data", "more_masked", "data")
+        more_masked.initialize_from_aspects(path, transform_aspects)
         progress_bar.update(1)
 
     # ====================================
     # Make "images.svg" and "*_masks.svg".
     # ====================================
-    def plot_images_and_masks(filename_suffix, images_only=False):
-        NUM_IMAGES = 2
-        GRID_COLUMNS = 2
+    def plot_images_and_masks(dataset, dataset_name, filename_suffix,
+                                images_only=False):
         IMAGE_SIZE = (4, 4)
 
-        images, masks = data.get_batch(NUM_IMAGES)
+        images, masks = dataset.get_all()
+
         filename = "images{0:s}.svg".format(filename_suffix)
-        path = os.path.join(figure_dir, filename)
-        visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE,
+        path = os.path.join(figure_dir, dataset_name, filename)
+        visualization.plot_images(images, images.shape[0], IMAGE_SIZE,
                                   "Plate Images", path=path)
         if images_only:
             return
         filename = "inside_masks{0:s}.svg".format(filename_suffix)
-        path = os.path.join(figure_dir, filename)
-        visualization.plot_images(masks[..., 0], GRID_COLUMNS, IMAGE_SIZE,
+        path = os.path.join(figure_dir, dataset_name, filename)
+        visualization.plot_images(masks[..., 0], images.shape[0], IMAGE_SIZE,
                                   "Plate Image Inside Masks", path=path)
         filename = "edge_masks{0:s}.svg".format(filename_suffix)
-        path = os.path.join(figure_dir, filename)
-        visualization.plot_images(masks[..., 1], GRID_COLUMNS, IMAGE_SIZE,
+        path = os.path.join(figure_dir, dataset_name, filename)
+        visualization.plot_images(masks[..., 1], images.shape[0], IMAGE_SIZE,
                                   "Plate Image Edge Masks", path=path)
         filename = "outside_masks{0:s}.svg".format(filename_suffix)
-        path = os.path.join(figure_dir, filename)
-        visualization.plot_images(masks[..., 2], GRID_COLUMNS, IMAGE_SIZE,
+        path = os.path.join(figure_dir, dataset_name, filename)
+        visualization.plot_images(masks[..., 2], images.shape[0], IMAGE_SIZE,
                                   "Plate Image Outside Masks", path=path)
-    plot_images_and_masks("")
+    plot_images_and_masks(easy_masked, "easy", "")
+    plot_images_and_masks(more_masked, "more", "")
 
     # ============================
     # Resize the images and masks.
@@ -129,53 +144,64 @@ if __name__ == "__main__":
     IMAGE_ORDER = 3
     MASK_ORDER = 0
 
-    tqdm_params = {"desc": "resize images and masks", "total": data.size(),
-                   "unit": "example"}
-    resize_factor = convnet1.ConvNet1.PATCH_SIZE / args.patchsize
+    tqdm_params = {"desc": "resize images and masks",
+                    "total": easy_masked.size() + more_masked.size(),
+                    "unit": "example"}
+    
+    easy_factor = convnet1.ConvNet1.PATCH_SIZE / args.easypatchsize
+    more_factor = convnet1.ConvNet1.PATCH_SIZE / args.morepatchsize
+
     with tqdm.tqdm(**tqdm_params) as progress_bar:
-        def resize_example(example):
-            image, mask = example
-            target_dims = tuple(round(dim*resize_factor)
-                                for dim in image.shape[:2])
-            image = transform.resize(image, target_dims, order=IMAGE_ORDER,
-                                     mode=EDGE_MODE, clip=False)
-            mask = transform.resize(mask, target_dims, order=MASK_ORDER,
-                                    mode=EDGE_MODE, clip=False)
-            progress_bar.update(1)
-            return [(image, mask)]
-        data.map(resize_example)
+        def make_resizer(factor):
+            def resizer(example):
+                image, mask = example
+                target_dims = tuple(round(dim*factor)
+                                    for dim in image.shape[:2])
+                image = transform.resize(image, target_dims, order=IMAGE_ORDER,
+                                         mode=EDGE_MODE, clip=False)
+                mask = transform.resize(mask, target_dims, order=MASK_ORDER,
+                                        mode=EDGE_MODE, clip=False)
+                progress_bar.update(1)
+                return [(image, mask)]
+            return resizer
+        easy_masked.map(make_resizer(easy_factor))
+        more_masked.map(make_resizer(more_factor))
 
     # ====================================================
     # Make "images_resized.svg" and "*_masks_resized.svg".
     # ====================================================
-    plot_images_and_masks("_resized")
+    plot_images_and_masks(easy_masked, "easy", "_resized")
+    plot_images_and_masks(more_masked, "more", "_resized")
 
     # =====================
     # Normalize the images.
     # =====================
-    tqdm_params = {"desc": "normalize images", "total": data.size(),
-                   "unit": "example"}
+    tqdm_params = {"desc": "normalize images",
+                    "total": easy_masked.size() + more_masked.size(),
+                    "unit": "example"}
     with tqdm.tqdm(**tqdm_params) as progress_bar:
         def normalize_images(examples):
             images, masks = examples
             images = preprocess.divide_median_normalize(images)
             progress_bar.update(images.shape[0])
             return (images, masks)
-        data.map_batch(normalize_images)
+        easy_masked.map_batch(normalize_images)
+        more_masked.map_batch(normalize_images)
 
     # =============================
     # Make "images_normalized.svg".
     # =============================
-    plot_images_and_masks("_normalized", True)
+    plot_images_and_masks(easy_masked, "easy", "_normalized", True)
+    plot_images_and_masks(more_masked, "more", "_normalized", True)
 
     # ============================
     # Extract patches and classes.
     # ============================
     SEGMENT_PROPORTION = 0.01
 
-    patches_dir = os.path.join(args.outdir, "patches")
-    tqdm_params = {"desc": "extract patches", "total": data.size(),
-                   "unit": "example"}
+    tqdm_params = {"desc": "extract patches",
+                    "total": easy_masked.size() + more_masked.size(),
+                    "unit": "example"}
     with tqdm.tqdm(**tqdm_params) as progress_bar:
         def extract_patches(image, mask):
             # black is 0 and white is 255, so this gets, for each position, the
@@ -185,11 +211,28 @@ if __name__ == "__main__":
                 class_image, convnet1.ConvNet1.PATCH_SIZE,
                 max_patches=args.maxpatch)
             progress_bar.update(1)
-        segment_size = round(args.maxpatch * data.size() * SEGMENT_PROPORTION)
-        new_data = data.map_generator(extract_patches, patches_dir,
-                                      segment_size)
-        data.delete()
-        data = new_data
+
+        segment_size = round(args.maxpatch * easy_masked.size() \
+                            * SEGMENT_PROPORTION)
+        path = os.path.join(args.outdir, "easy_masked_patched")
+        easy_masked = easy_masked.map_generator(extract_patches, path,
+                                        segment_size)
+
+        segment_size = round(args.maxpatch * more_masked.size() \
+                            * SEGMENT_PROPORTION)
+        path = os.path.join(args.outdir, "more_masked_patched")
+        more_masked = more_masked.map_generator(extract_patches, path,
+                                        segment_size)
+
+    # ===================
+    # Merge the datasets.
+    # ===================
+    path = os.path.join(args.outdir, "masked")
+    size = easy_masked.size() + more_masked.size()
+    segment_size = round(size * SEGMENT_PROPORTION)
+    masked = dataset.Dataset(path, segment_size)
+    masked.add(easy_masked)
+    masked.add(more_masked)
 
     # ===================
     # Make "patches.svg".
@@ -201,7 +244,7 @@ if __name__ == "__main__":
         CLASS_NAMES = {0: "0: inside a colony", 1: "1: on the edge of a colony",
                        2: "2: outside all colonies"}
 
-        patches, classes = data.get_batch(NUM_PATCHES, pool_multiplier=20)
+        patches, classes = masked.get_batch(NUM_PATCHES, pool_multiplier=20)
         subtitles = [CLASS_NAMES[classes[i]] for i in range(classes.shape[0])]
         path = os.path.join(figure_dir,
                             "patches{0:s}.svg".format(filename_suffix))
@@ -212,7 +255,7 @@ if __name__ == "__main__":
     # ======================
     # Normalize the patches.
     # ======================
-    tqdm_params = {"desc": "normalize patches", "total": data.size(),
+    tqdm_params = {"desc": "normalize patches", "total": masked.size(),
                    "unit": "example"}
 
     def normalize_patches(examples):
@@ -222,7 +265,7 @@ if __name__ == "__main__":
         return (patches, classes)
 
     with tqdm.tqdm(**tqdm_params) as progress_bar:
-        data.map_batch(normalize_patches)
+        masked.map_batch(normalize_patches)
 
     # ==============================
     # Make "patches_normalized.svg".
@@ -234,7 +277,7 @@ if __name__ == "__main__":
     # ===========================
     NUM_CLASSES = 3
 
-    tqdm_params = {"desc": "one-hot encode classes", "total": data.size(),
+    tqdm_params = {"desc": "one-hot encode classes", "total": masked.size(),
                    "unit": "example"}
 
     def one_hot_encode_classes(examples):
@@ -245,16 +288,16 @@ if __name__ == "__main__":
         return (patches, one_hot_classes)
 
     with tqdm.tqdm(**tqdm_params) as progress_bar:
-        data.map_batch(one_hot_encode_classes)
+        masked.map_batch(one_hot_encode_classes)
 
     # ====================================================
     # Split the dataset into training and validation sets.
     # ====================================================
     TEST_P = 0.1
-    TRAIN_SAVE_PATH = os.path.join(args.outdir, "easy_masked_train")
-    VALID_SAVE_PATH = os.path.join(args.outdir, "easy_masked_validation")
+    TRAIN_SAVE_PATH = os.path.join(args.outdir, "masked_train")
+    VALID_SAVE_PATH = os.path.join(args.outdir, "masked_validation")
 
     with tqdm.tqdm(desc="split dataset", total=1) as progress_bar:
-        train, test = data.split(TEST_P, TRAIN_SAVE_PATH, VALID_SAVE_PATH)
-        data.delete()
+        train, test = masked.split(TEST_P, TRAIN_SAVE_PATH, VALID_SAVE_PATH)
+        masked.delete()
         progress_bar.update(1)
