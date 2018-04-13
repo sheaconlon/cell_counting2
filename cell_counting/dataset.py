@@ -37,6 +37,21 @@ class Dataset(object):
             self._segments = 0
             self._save_metadata()
 
+    def add(self, src):
+        """Add the examples from a source dataset to this dataset.
+
+        Args:
+            src (Dataset): The source dataset.
+        """
+
+        def gen():
+            for segment in range(src._segments):
+                inputs, outputs = src._load_segment(segment)
+                for i in range(inputs.shape[0]):
+                    yield inputs[i, ...], outputs[i, ...]
+
+        self._load_examples(gen())
+
     def load(self, loader_path):
         """Load examples using a loader.
 
