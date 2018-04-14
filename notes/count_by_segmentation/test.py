@@ -1,4 +1,4 @@
-"""Tests the model using the ``easy_masked`` training/validation splits,
+"""Tests the model using the ``masked`` training/validation splits,
     the ``easy`` test split, ``multi``, and ``more``.
 
 Produces the following plots.
@@ -52,12 +52,12 @@ if __name__ == "__main__":
     # Process command-line arguments.
     # ===============================
     parser = argparse.ArgumentParser(
-        description='Validates the model using the validation splits of the'
-                    'masks_and_counts and counts_easy datasets.')
-    parser.add_argument("-easymaskeddir", type=str, required=False,
-                        default="preprocess_easy_masked",
+        description='Tests the model using the "masked" training/validation'
+                    ' splits, the "easy" test split, "multi", and "more".')
+    parser.add_argument("-maskeddir", type=str, required=False,
+                        default="preprocess_masked",
                         help="A path to a directory containing the output of "
-                             "preprocess_easy_masked.py.")
+                             "preprocess_masked.py.")
     parser.add_argument("-easydir", type=str, required=False,
                         default="preprocess_easy",
                         help="A path to a directory containing the output of "
@@ -82,7 +82,7 @@ if __name__ == "__main__":
                         default="test",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-countsize", type=int, required=False, default=1024,
+    parser.add_argument("-countsize", type=int, required=False, default=512,
                         help="The size to scale the largest dimension of"
                              " images to when counting them.")
     parser.add_argument("-mindistratio", type=float, required=False,
@@ -103,22 +103,22 @@ if __name__ == "__main__":
     TQDM_PARAMS = {"desc": "load datasets", "total": 5, "unit": "dataset"}
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
-        masks_counts_train_path = os.path.join(args.maskscountsdir,
-                                  "easy_masked_train")
+        masks_counts_train_path = os.path.join(args.maskeddir,
+                                  "masked_train")
         masks_counts_train = dataset.Dataset(masks_counts_train_path)
         progress_bar.update(1)
 
-        masks_counts_valid_path = os.path.join(args.maskscountsdir,
-                                 "easy_masked_validation")
+        masks_counts_valid_path = os.path.join(args.maskeddir,
+                                 "masked_validation")
         masks_counts_valid = dataset.Dataset(masks_counts_valid_path)
         progress_bar.update(1)
 
-        counts_easy_path = os.path.join(args.countseasydir,
+        counts_easy_path = os.path.join(args.easydir,
                                         "easy_test")
         counts_easy = dataset.Dataset(counts_easy_path)
         progress_bar.update(1)
 
-        counts_multicondition_path = os.path.join(args.countsmulticonditiondir,
+        counts_multicondition_path = os.path.join(args.multidir,
                                                   "multi")
         counts_multicondition = dataset.Dataset(counts_multicondition_path)
         progress_bar.update(1)
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     # Create "pixels/accuracy_vs_patch_size.svg".
     # ===========================================
     SIZE_DEVIATION = 2
-    ACTUAL_SIZE = 43
+    ACTUAL_SIZES = (43, 59)
     SIZES = 10
     PATCHES = 10000
     BATCH = 3000
@@ -280,24 +280,23 @@ if __name__ == "__main__":
         predicted = np.argmax(predicted, axis=1)
         return np.mean(np.equal(actual, predicted))
 
-    min_size = max(1, math.floor(ACTUAL_SIZE/SIZE_DEVIATION))
-    max_size = math.ceil(ACTUAL_SIZE*SIZE_DEVIATION)
-    sizes = []
+    deviations = np.geomspace(1/SIZE_DEVIATION, SIZE_DEVIATION, SIZES)
     accuracies = []
     with tqdm.tqdm(desc="create pixels/accuracy_vs_patch_size.svg",
                    unit="patch sizes", total=SIZES) as bar:
-        for size in np.geomspace(min_size, max_size, SIZES):
-            size = round(size)
-            subprocess.call(["python3", "../preprocess_easy_masked.py",
-                             "-maxpatch", str(PATCHES), "-patchsize",
-                             str(size), "-outdir", "test_tmp"])
-            data = dataset.Dataset(
-                "test_tmp/easy_masked_train")
+        for deviation in deviations:
+            sizes = (round(ACTUAL_SIZES[0] * deviation),
+                     round(ACTUAL_SIZES[1] * deviation))
+            subprocess.call(["python3", "../preprocess_masked.py",
+                             "-maxpatch", str(PATCHES), "-easypatchsize",
+                             str(sizes[0]), "-morepatchsize",
+                             str(sizes[1]), "-outdir", "test_tmp"])
+            data = dataset.Dataset("test_tmp/masked_train")
             all_actual, all_predicted = [], []
             batch = min(BATCH, data.size())
             batches = data.get_batch_iterable(batch, POOL, epochs=True)
 
-            with tqdm.tqdm(desc="assess accuracy for size {0:f}".format(size),
+            with tqdm.tqdm(desc="assess deviation {0:f}".format(deviation),
                            unit="examples", total=data.size()) as bar2:
                 inputs, actual = next(batches)
                 while batches._epoch == 1:
@@ -311,14 +310,15 @@ if __name__ == "__main__":
             actual = np.argmax(actual, axis=1)
             predicted = np.argmax(predicted, axis=1)
             accuracy = np.mean(np.equal(actual, predicted))
-            sizes.append(size)
             accuracies.append(accuracy)
             shutil.rmtree("test_tmp")
             bar.update(1)
 
     path = os.path.join(args.outdir, "pixels", "accuracy_vs_patch_size.svg")
-    visualization.plot_scatter(sizes, accuracies, "Effect of Patch Size at "
-                               "Testing Time", "patch size (px)",
-                               "pixelwise classification accuracy", 4, 10,
-                               path=path)
+    visualization.plot_scatter(deviations, accuracies,
+                               "Effect of Patch Size at Testing Time",
+                                "patch size as factor of human-determined"
+                                " patch size",
+                                "pixelwise classification accuracy", 4, 10,
+                                path=path)
 
