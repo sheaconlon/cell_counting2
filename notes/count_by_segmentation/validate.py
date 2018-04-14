@@ -91,7 +91,7 @@ if __name__ == "__main__":
         loss = losses.make_cross_entropy_loss()(actual, predicted)
         return utilities.tensor_eval(loss)
 
-    path = os.path.join(args.maskscountsdir, "masked_validation")
+    path = os.path.join(args.maskeddir, "masked_validation")
     masks_counts = dataset.Dataset(path)
     all_actual, all_predicted = [], []
     batch_size = min(BATCH_SIZE, masks_counts.size())
