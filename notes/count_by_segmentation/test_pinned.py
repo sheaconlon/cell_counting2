@@ -119,13 +119,11 @@ if __name__ == "__main__":
     def plot_counts():
         xs = [row[1] for row in count_data]
         ys = [row[2] for row in count_data]
-        colors = [row[0] for row in count_data]
         path = os.path.join(args.out, "predicted_vs_actual.svg")
         visualization.plot_scatter(xs, ys,
                                    "CFU Counts for 'pinned' Dataset"
                                    " Well Images", "actual count (CFU)",
-                                   "predicted count (CFU)", 4, 10,
-                                   colors=colors, path=path)
+                                   "predicted count (CFU)", 4, 10, path=path)
 
     images, counts = pinned.get_all()
     count_data = []
