@@ -10,7 +10,7 @@ class BaseModel(object):
     _LOG_STEPS = 500
     _TRAIN_STEPS = 50
     _SECS_PER_MIN = 60
-    _PREDICT_BATCH_SIZE = 3000
+    _PREDICT_BATCH_SIZE = 4000
 
     def __init__(self, save_dir, chkpt_save_interval, loss_fn,
             optimizer_factory):
