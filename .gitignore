@@ -2,3 +2,9 @@
 __pycache__
 *.pyc
 .idea
+preprocess*/
+train*/
+validate*/
+test*/
+test_pinned*/
+Icon*
