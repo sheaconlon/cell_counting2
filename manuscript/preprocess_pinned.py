@@ -19,7 +19,7 @@ Run ``python preprocess_pinned.py -h`` to see usage details.
 # ========================================
 import sys, os
 
-repo_path = os.path.join(os.path.dirname(__file__), '..', '..')
+repo_path = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, repo_path)
 
 # ==========================
