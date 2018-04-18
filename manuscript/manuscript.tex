@@ -1,0 +1,425 @@
+% Template for PLoS
+% Version 3.1 February 2015
+%
+% To compile to pdf, run:
+% latex plos.template
+% bibtex plos.template
+% latex plos.template
+% latex plos.template
+% dvipdf plos.template
+%
+% % % % % % % % % % % % % % % % % % % % % %
+%
+% -- IMPORTANT NOTE
+%
+% This template contains comments intended 
+% to minimize problems and delays during our production 
+% process. Please follow the template instructions
+% whenever possible.
+%
+% % % % % % % % % % % % % % % % % % % % % % % 
+%
+% Once your paper is accepted for publication, 
+% PLEASE REMOVE ALL TRACKED CHANGES in this file and leave only
+% the final text of your manuscript.
+%
+% There are no restrictions on package use within the LaTeX files except that 
+% no packages listed in the template may be deleted.
+%
+% Please do not include colors or graphics in the text.
+%
+% Please do not create a heading level below \subsection. For 3rd level headings, use \paragraph{}.
+%
+% % % % % % % % % % % % % % % % % % % % % % %
+%
+% -- FIGURES AND TABLES
+%
+% Please include tables/figure captions directly after the paragraph where they are first cited in the text.
+%
+% DO NOT INCLUDE GRAPHICS IN YOUR MANUSCRIPT
+% - Figures should be uploaded separately from your manuscript file. 
+% - Figures generated using LaTeX should be extracted and removed from the PDF before submission. 
+% - Figures containing multiple panels/subfigures must be combined into one image file before submission.
+% For figure citations, please use "Fig." instead of "Figure".
+% See http://www.plosone.org/static/figureGuidelines for PLOS figure guidelines.
+%
+% Tables should be cell-based and may not contain:
+% - tabs/spacing/line breaks within cells to alter layout or alignment
+% - vertically-merged cells (no tabular environments within tabular environments, do not use \multirow)
+% - colors, shading, or graphic objects
+% See http://www.plosone.org/static/figureGuidelines#tables for table guidelines.
+%
+% For tables that exceed the width of the text column, use the adjustwidth environment as illustrated in the example table in text below.
+%
+% % % % % % % % % % % % % % % % % % % % % % % %
+%
+% -- EQUATIONS, MATH SYMBOLS, SUBSCRIPTS, AND SUPERSCRIPTS
+%
+% IMPORTANT
+% Below are a few tips to help format your equations and other special characters according to our specifications. For more tips to help reduce the possibility of formatting errors during conversion, please see our LaTeX guidelines at http://www.plosone.org/static/latexGuidelines
+%
+% Please be sure to include all portions of an equation in the math environment.
+%
+% Do not include text that is not math in the math environment. For example, CO2 will be CO\textsubscript{2}.
+%
+% Please add line breaks to long display equations when possible in order to fit size of the column. 
+%
+% For inline equations, please do not include punctuation (commas, etc) within the math environment unless this is part of the equation.
+%
+% % % % % % % % % % % % % % % % % % % % % % % % 
+%
+% Please contact latex@plos.org with any questions.
+%
+% % % % % % % % % % % % % % % % % % % % % % % %
+
+\documentclass[10pt,letterpaper]{article}
+\usepackage[top=0.85in,left=2.75in,footskip=0.75in]{geometry}
+
+% Use adjustwidth environment to exceed column width (see example table in text)
+\usepackage{changepage}
+
+% Use Unicode characters when possible
+\usepackage[utf8]{inputenc}
+
+% textcomp package and marvosym package for additional characters
+\usepackage{textcomp,marvosym}
+
+% fixltx2e package for \textsubscript
+\usepackage{fixltx2e}
+
+% amsmath and amssymb packages, useful for mathematical formulas and symbols
+\usepackage{amsmath,amssymb}
+
+% cite package, to clean up citations in the main text. Do not remove.
+\usepackage{cite}
+
+% Use nameref to cite supporting information files (see Supporting Information section for more info)
+\usepackage{nameref,hyperref}
+
+% line numbers
+\usepackage[right]{lineno}
+
+% ligatures disabled
+\usepackage{microtype}
+\DisableLigatures[f]{encoding = *, family = * }
+
+% rotating package for sideways tables
+\usepackage{rotating}
+
+% Remove comment for double spacing
+%\usepackage{setspace} 
+%\doublespacing
+
+% Text layout
+\raggedright
+\setlength{\parindent}{0.5cm}
+\textwidth 5.25in 
+\textheight 8.75in
+
+% Bold the 'Figure #' in the caption and separate it from the title/caption with a period
+% Captions will be left justified
+\usepackage[aboveskip=1pt,labelfont=bf,labelsep=period,justification=raggedright,singlelinecheck=off]{caption}
+
+% Display SVG images
+\usepackage{svg}
+
+\usepackage{wrapfig}
+
+\usepackage{float}
+
+% Use the PLoS provided BiBTeX style
+\bibliographystyle{plos2015}
+
+% Remove brackets from numbering in List of References
+\makeatletter
+\renewcommand{\@biblabel}[1]{\quad#1.}
+\makeatother
+
+% Leave date blank
+\date{}
+
+% Header and Footer with logo
+\usepackage{lastpage,fancyhdr,graphicx}
+\usepackage{epstopdf}
+\pagestyle{myheadings}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\includegraphics[width=2.0in]{PLOS-Submission.eps}}
+\rfoot{\thepage/\pageref{LastPage}}
+\renewcommand{\footrule}{\hrule height 2pt \vspace{2mm}}
+\fancyheadoffset[L]{2.25in}
+\fancyfootoffset[L]{2.25in}
+\lfoot{\sf PLOS}
+
+%% Include all macros below
+
+\newcommand{\lorem}{{\bf LOREM}}
+\newcommand{\ipsum}{{\bf IPSUM}}
+
+%% END MACROS SECTION
+
+
+\begin{document}
+\vspace*{0.35in}
+
+% Title must be 250 characters or less.
+% Please capitalize all terms in the title except conjunctions, prepositions, and articles.
+\begin{flushleft}
+{\Large
+\textbf\newline{Article Title - Submission to PLOS Journals}
+}
+\newline
+% Insert author names, affiliations and corresponding author email (do not include titles, positions, or degrees).
+\\
+Name1 Surname\textsuperscript{1,\Yinyang},
+Name2 Surname\textsuperscript{2,\Yinyang},
+Name3 Surname\textsuperscript{2,\textcurrency a},
+Name4 Surname\textsuperscript{2,\ddag},
+Name5 Surname\textsuperscript{2,\ddag},
+Name6 Surname\textsuperscript{2},
+Name7 Surname\textsuperscript{3,*},
+with the Lorem Ipsum Consortium\textsuperscript{\textpilcrow}
+\\
+\bigskip
+\bf{1} Affiliation Dept/Program/Center, Institution Name, City, State, Country
+\\
+\bf{2} Affiliation Dept/Program/Center, Institution Name, City, State, Country
+\\
+\bf{3} Affiliation Dept/Program/Center, Institution Name, City, State, Country
+\\
+\bigskip
+
+% Insert additional author notes using the symbols described below. Insert symbol callouts after author names as necessary.
+% 
+% Remove or comment out the author notes below if they aren't used.
+%
+% Primary Equal Contribution Note
+\Yinyang These authors contributed equally to this work.
+
+% Additional Equal Contribution Note
+% Also use this double-dagger symbol for special authorship notes, such as senior authorship.
+\ddag These authors also contributed equally to this work.
+
+% Current address notes
+\textcurrency a Insert current address of first author with an address update
+% \textcurrency b Insert current address of second author with an address update
+% \textcurrency c Insert current address of third author with an address update
+
+% Deceased author note
+\dag Deceased
+
+% Group/Consortium Author Note
+\textpilcrow Membership list can be found in the Acknowledgments section.
+
+% Use the asterisk to denote corresponding authorship and provide email address in note below.
+* CorrespondingAuthor@institute.edu
+
+\end{flushleft}
+% Please keep the abstract below 300 words
+\section*{Abstract}
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+
+% Please keep the Author Summary between 150 and 200 words
+% Use first person. PLOS ONE authors please skip this step. 
+% Author Summary not valid for PLOS ONE submissions.   
+\section*{Author Summary}
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\linenumbers
+
+\section*{Introduction}
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\section*{Materials and Methods}
+\subsection*{\texttt{easy\_masked} Dataset}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/preprocess_masked/figures/easy/, width=0.5\textwidth]{images}
+\includesvg[svgpath=standard_1m/preprocess_masked/figures/easy/, width=0.5\textwidth]{inside_masks}
+\includesvg[svgpath=standard_1m/preprocess_masked/figures/easy/, width=0.5\textwidth]{edge_masks}
+\includesvg[svgpath=standard_1m/preprocess_masked/figures/easy/, width=0.5\textwidth]{outside_masks}
+\caption{{\bf \texttt{easy\_masked} Dataset. This dataset consists of $2$ plate images and their masks.} The purple pixels of a mask are of the mask's class (\texttt{inside} a CFU, on the \texttt{edge} of some CFU(s), \texttt{outside} all CFUs). The yellow pixels are not.}
+\label{fig1}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{\texttt{more\_masked} Dataset}
+\begin{figure}[H]
+\Large{FIGURES MISSING}
+\caption{{\bf \texttt{more\_masked} Dataset. This dataset consists of $1$ plate image and its mask.}}
+\label{fig2}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{\texttt{easy} Dataset}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/preprocess_easy/figures/, width=\textwidth]{plates}
+\caption{{\bf \texttt{easy} Dataset. This dataset consists of $26$ plate images and their CFU counts.} bla bla}
+\label{fig3}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{\texttt{multi} Dataset}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/preprocess_multi/figures/, width=\textwidth]{plate_0}
+\caption{{\bf \texttt{easy} Dataset. This dataset consists of $26$ plate images and their CFU counts.} bla bla}
+\label{fig5}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{\texttt{pinned} Dataset}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/preprocess_pinned/figures/, width=\textwidth]{resized}
+\caption{{\bf \texttt{easy} Dataset. This dataset consists of $26$ plate images and their CFU counts.} bla bla}
+\label{fig6}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{DCNN}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/preprocess_masked/figures/, width=\textwidth]{patches}
+\caption{{\bf \texttt{easy} Dataset. This dataset consists of $26$ plate images and their CFU counts.} bla bla}
+\label{fig6}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\begin{figure}[H]
+\setlength\tabcolsep{0in}
+\begin{tabular}{c c c c c}
+\graphicspath{{standard_1m/test/counts/overlay_images/}}
+\includegraphics[width=1in]{24}
+&
+\graphicspath{{standard_1m/test/counts/inside_images/}}
+\includegraphics[width=1in]{24}
+&
+\graphicspath{{standard_1m/test/counts/distance_images/}}
+\includegraphics[width=1in]{24}
+&
+\graphicspath{{standard_1m/test/counts/marker_images/}}
+\includegraphics[width=1in]{24}
+&
+\graphicspath{{standard_1m/test/counts/label_images/}}
+\includegraphics[width=1in]{24}
+\end{tabular}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig5}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{SVM}
+\begin{figure}[H]
+\graphicspath{{train_svm/}}
+\includegraphics[width=0.5\textwidth]{hog_image2}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig10}
+\end{figure}
+
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+% Results and Discussion can be combined.
+\section*{Results}
+
+\subsection*{DCNN: Training}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/train/17900/, width=\textwidth]{accuracy}
+\includesvg[svgpath=standard_1m/train/17900/, width=\textwidth]{loss}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig6}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{DCNN: Validation}
+\begin{figure}[H]
+17900
+0.15390372276306152
+\caption{{\bf Training Iteration Chosen by Validation. bla bla bla.}}
+\label{fig7}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{DCNN: Testing}
+
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/test/counts/, width=\textwidth]{predicted_vs_actual}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig8}
+\end{figure}
+
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/test_pinned/, width=\textwidth]{predicted_vs_actual}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig9}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{SVM}
+\begin{figure}[H]
+\includesvg[svgpath=train_svm/, width=0.5\textwidth]{confusion_matrix}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig10}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\subsection*{Ancillary}
+\begin{figure}[H]
+\includesvg[svgpath=standard_1m/test/pixels/, width=\textwidth]{accuracy_vs_patch_size}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig10}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\begin{figure}[H]
+\includesvg[svgpath=bimodality_output/, width=3in]{2}
+\caption{{\bf Metrics During Training. bla bla bla.}}
+\label{fig10}
+\end{figure}
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur eget porta erat. Morbi consectetur est vel gravida pretium. Suspendisse ut dui eu ante cursus gravida non sed sem. Nullam sapien tellus, commodo id velit id, eleifend volutpat quam. Phasellus mauris velit, dapibus finibus elementum vel, pulvinar non tellus. Nunc pellentesque pretium diam, quis maximus dolor faucibus id. Nunc convallis sodales ante, ut ullamcorper est egestas vitae. Nam sit amet enim ultrices, ultrices elit pulvinar, volutpat risus.
+
+\section*{Supporting Information}
+
+\subsection*{S1 Video}
+\label{S1_Video}
+{\bf Bold the first sentence.}  Maecenas convallis mauris sit amet sem ultrices gravida. Etiam eget sapien nibh. Sed ac ipsum eget enim egestas ullamcorper nec euismod ligula. Curabitur fringilla pulvinar lectus consectetur pellentesque.
+
+\section*{Acknowledgments}
+Cras egestas velit mauris, eu mollis turpis pellentesque sit amet. Interdum et malesuada fames ac ante ipsum primis in faucibus. Nam id pretium nisi. Sed ac quam id nisi malesuada congue. Sed interdum aliquet augue, at pellentesque quam rhoncus vitae.
+
+\nolinenumbers
+
+
+\begin{thebibliography}{10}
+\bibitem{bib1}
+Devaraju P, Gulati R, Antony PT, Mithun CB, Negi VS. Susceptibility to SLE in South Indian Tamils may be influenced by genetic selection pressure on TLR2 and TLR9 genes. Mol Immunol. 2014 Nov 22. pii: S0161-5890(14)00313-7. doi: 10.1016/j.molimm.2014.11.005
+
+\end{thebibliography}
+
+
+
+\end{document}
+
