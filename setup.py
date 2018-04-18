@@ -22,6 +22,8 @@ setup(
     'scikit-image',
     'matplotlib',
     'imageio',
-    'tqdm'
+    'tqdm',
+    'psutil',
+    'scikit-learn'
   ]
 )
