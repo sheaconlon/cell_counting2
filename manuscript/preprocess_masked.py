@@ -4,9 +4,10 @@ Does the following:
 1. Resizes the images.
 2. Normalizes the images.
 3. Extracts patches from the images.
-4. Normalizes the patches.
-5. One-hot encodes the classes.
-6. Splits the dataset into training and validation sets.
+4. Augments the patches.
+5. Normalizes the patches.
+6. One-hot encodes the classes.
+7. Splits the dataset into training and validation sets.
 
 Produces the following plots, where * is one of "easy" or "more".
 1. */images.svg, */inside_masks.svg, */edge_masks.svg, */outside_masks.svg
@@ -14,7 +15,8 @@ Produces the following plots, where * is one of "easy" or "more".
     */outside_masks_resized.svg
 3. */images_normalized.svg
 4. patches.svg
-5. patches_normalized.svg
+5. patches_augmented.svg
+6. patches_normalized.svg
 
 Saves the resulting `Dataset`s.
 
@@ -26,7 +28,7 @@ Run ``python preprocess_masked.py -h`` to see usage details.
 # ========================================
 import sys, os
 
-repo_path = os.path.join(os.path.dirname(__file__), '..', '..')
+repo_path = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, repo_path)
 
 # ==========================
@@ -39,6 +41,7 @@ from cell_counting.models.segmentation import convnet1
 # Import from the Python library.
 # ===============================
 import argparse
+import random
 
 # ===========================
 # Import from other packages.
@@ -46,6 +49,7 @@ import argparse
 import numpy as np
 from skimage import transform
 import tqdm
+from imgaug import augmenters as iaa
 
 if __name__ == "__main__":
     # ===============================
@@ -143,41 +147,55 @@ if __name__ == "__main__":
     EDGE_MODE = "reflect"
     IMAGE_ORDER = 3
     MASK_ORDER = 0
-
-    tqdm_params = {"desc": "resize images and masks",
-                    "total": easy_masked.size() + more_masked.size(),
-                    "unit": "example"}
+    SCALE_MIN = 0.2
+    SCALE_MODE = 0.8
+    SCALE_MAX = 1.5
+    NUM_SCALES_PER_IMAGE = 2  # FIXME
     
     easy_factor = convnet1.ConvNet1.PATCH_SIZE / args.easypatchsize
     more_factor = convnet1.ConvNet1.PATCH_SIZE / args.morepatchsize
 
-    with tqdm.tqdm(**tqdm_params) as progress_bar:
-        def make_resizer(factor):
-            def resizer(example):
-                image, mask = example
-                target_dims = tuple(round(dim*factor)
-                                    for dim in image.shape[:2])
-                image = transform.resize(image, target_dims, order=IMAGE_ORDER,
-                                         mode=EDGE_MODE, clip=False)
-                mask = transform.resize(mask, target_dims, order=MASK_ORDER,
-                                        mode=EDGE_MODE, clip=False)
-                progress_bar.update(1)
-                return [(image, mask)]
-            return resizer
-        easy_masked.map(make_resizer(easy_factor))
-        more_masked.map(make_resizer(more_factor))
+    def make_resizer(factor):
+        def resizer(image, mask):
+            target_dims = tuple(round(dim * factor) for dim in image.shape[:2])
+            image = transform.resize(image, target_dims, order=IMAGE_ORDER,
+                                     mode=EDGE_MODE, clip=False)
+            mask = transform.resize(mask, target_dims, order=MASK_ORDER,
+                                    mode=EDGE_MODE, clip=False)
+            example = (image, mask)
+            prog.update(1)
+            yield example
+        return resizer
+
+    def resize_rescale(dataset, name, factor):
+        datasets = []
+        for i in range(NUM_SCALES_PER_IMAGE):
+            path = os.path.join(args.outdir, name + "_scaled_" + str(i))
+            scale = random.triangular(SCALE_MIN, SCALE_MAX, SCALE_MODE)
+            resized_rescaled = dataset.map_generator(
+                make_resizer(factor*scale), path, 1)
+            datasets.append(resized_rescaled)
+        return datasets
+
+    resizes = (easy_masked.size() + more_masked.size()) * NUM_SCALES_PER_IMAGE
+    with tqdm.tqdm(desc="resize images and masks", unit="example-scale",
+                   total=resizes) as prog:
+        easy_scales = resize_rescale(easy_masked, "easy_masked", easy_factor)
+        more_scales = resize_rescale(more_masked, "more_masked", more_factor)
 
     # ====================================================
     # Make "images_resized.svg" and "*_masks_resized.svg".
     # ====================================================
-    plot_images_and_masks(easy_masked, "easy", "_resized")
-    plot_images_and_masks(more_masked, "more", "_resized")
+    for i in range(NUM_SCALES_PER_IMAGE):
+        plot_images_and_masks(easy_scales[i], "easy", "_resized_" + str(i))
+    for i in range(NUM_SCALES_PER_IMAGE):
+        plot_images_and_masks(more_scales[i], "more", "_resized_" + str(i))
 
     # =====================
     # Normalize the images.
     # =====================
     tqdm_params = {"desc": "normalize images",
-                    "total": easy_masked.size() + more_masked.size(),
+                    "total": resizes,
                     "unit": "example"}
     with tqdm.tqdm(**tqdm_params) as progress_bar:
         def normalize_images(examples):
@@ -185,72 +203,110 @@ if __name__ == "__main__":
             images = preprocess.divide_median_normalize(images)
             progress_bar.update(images.shape[0])
             return (images, masks)
-        easy_masked.map_batch(normalize_images)
-        more_masked.map_batch(normalize_images)
+        for i in range(NUM_SCALES_PER_IMAGE):
+            easy_scales[i].map_batch(normalize_images)
+        for i in range(NUM_SCALES_PER_IMAGE):
+            more_scales[i].map_batch(normalize_images)
 
     # =============================
     # Make "images_normalized.svg".
     # =============================
-    plot_images_and_masks(easy_masked, "easy", "_normalized", True)
-    plot_images_and_masks(more_masked, "more", "_normalized", True)
+    for i in range(NUM_SCALES_PER_IMAGE):
+        plot_images_and_masks(easy_scales[i], "easy", "_normalized_" + str(i))
+    for i in range(NUM_SCALES_PER_IMAGE):
+        plot_images_and_masks(more_scales[i], "more", "_normalized_" + str(i))
 
     # ============================
     # Extract patches and classes.
     # ============================
     SEGMENT_PROPORTION = 0.01
+    MAX_PATCH_FACTOR_PER_SCALE = 1/NUM_SCALES_PER_IMAGE
 
-    tqdm_params = {"desc": "extract patches",
-                    "total": easy_masked.size() + more_masked.size(),
-                    "unit": "example"}
-    with tqdm.tqdm(**tqdm_params) as progress_bar:
-        def extract_patches(image, mask):
+    with tqdm.tqdm(desc="extract patches", total=resizes,
+                   unit="example-scale") as prog:
+        max_patch = int(args.maxpatch * MAX_PATCH_FACTOR_PER_SCALE)
+
+        def extractor(image, mask):
             # black is 0 and white is 255, so this gets, for each position, the
             # index of the mask with the darkest value
             class_image = np.argmin(mask, axis=2)
             yield from preprocess.extract_patches_generator(image,
                 class_image, convnet1.ConvNet1.PATCH_SIZE,
-                max_patches=args.maxpatch)
-            progress_bar.update(1)
+                max_patches=max_patch)
+            prog.update(1)
 
-        segment_size = round(args.maxpatch * easy_masked.size() \
-                            * SEGMENT_PROPORTION)
-        path = os.path.join(args.outdir, "easy_masked_patched")
-        easy_masked = easy_masked.map_generator(extract_patches, path,
-                                        segment_size)
-
-        segment_size = round(args.maxpatch * more_masked.size() \
-                            * SEGMENT_PROPORTION)
-        path = os.path.join(args.outdir, "more_masked_patched")
-        more_masked = more_masked.map_generator(extract_patches, path,
-                                        segment_size)
+        def patchify(dataset, name):
+            segment_size = round(max_patch * dataset.size()
+                                 * SEGMENT_PROPORTION)
+            path = os.path.join(args.outdir, name + "_patched")
+            patched = dataset.map_generator(extractor, path, segment_size)
+            return patched
+        for i in range(NUM_SCALES_PER_IMAGE):
+            easy_scales[i] = patchify(easy_scales[i], "easy_" + str(i))
+        for i in range(NUM_SCALES_PER_IMAGE):
+            more_scales[i] = patchify(more_scales[i], "more_" + str(i))
 
     # ===================
     # Merge the datasets.
     # ===================
     path = os.path.join(args.outdir, "masked")
-    size = easy_masked.size() + more_masked.size()
+    size = 0
+    for i in range(NUM_SCALES_PER_IMAGE):
+        size += easy_scales[i].size()
+    for i in range(NUM_SCALES_PER_IMAGE):
+        size += more_scales[i].size()
     segment_size = round(size * SEGMENT_PROPORTION)
     masked = dataset.Dataset(path, segment_size)
-    masked.add(easy_masked)
-    masked.add(more_masked)
+    for i in range(NUM_SCALES_PER_IMAGE):
+        masked.add(easy_scales[i])
+    for i in range(NUM_SCALES_PER_IMAGE):
+        masked.add(more_scales[i])
 
     # ===================
     # Make "patches.svg".
     # ===================
     def plot_patches(filename_suffix):
-        NUM_PATCHES = 12
+        NUM_PATCHES = 24
         GRID_COLUMNS = 6
         IMAGE_SIZE = (2, 2)
         CLASS_NAMES = {0: "0: inside a colony", 1: "1: on the edge of a colony",
                        2: "2: outside all colonies"}
 
-        patches, classes = masked.get_batch(NUM_PATCHES, pool_multiplier=20)
+        patches, classes = masked._load_segment(0)
+        patches, classes = patches[:NUM_PATCHES, ...], classes[:NUM_PATCHES]
         subtitles = [CLASS_NAMES[classes[i]] for i in range(classes.shape[0])]
         path = os.path.join(figure_dir,
                             "patches{0:s}.svg".format(filename_suffix))
         visualization.plot_images(patches, GRID_COLUMNS, IMAGE_SIZE, "Patches",
                                   subtitles=subtitles, path=path)
     plot_patches("")
+
+    # ====================
+    # Augment the patches.
+    # ====================
+    ALWAYS, OFTEN, SOMETIMES, RARELY = 1, 1/2, 1/10, 1/100
+    seq = iaa.Sequential([
+        iaa.Fliplr(OFTEN),
+        # iaa.Flipud(ALWAYS),
+        # iaa.Invert(RARELY, per_channel=True),
+        # iaa.Sometimes(SOMETIMES, iaa.Add((-45, 45), per_channel=True)),
+        # iaa.Sometimes(RARELY, iaa.AddToHueAndSaturation(value=(-15, 15),
+        #                                         from_colorspace="RGB")),
+        # iaa.Sometimes(SOMETIMES, iaa.GaussianBlur(sigma=(0, 1))),
+        # iaa.Sometimes(RARELY, iaa.Sharpen(alpha=(0, 0.25),
+        #                                  lightness=(0.9, 1.1))),
+        # iaa.Sometimes(SOMETIMES, iaa.AdditiveGaussianNoise(
+        #                                            scale=(0, 0.02 * 255))),
+        # iaa.SaltAndPepper(SOMETIMES),
+        # iaa.Sometimes(SOMETIMES, iaa.ContrastNormalization((0.5, 1.5))),
+        # iaa.Sometimes(SOMETIMES, iaa.Grayscale(alpha=(0.0, 1.0))),
+        # iaa.Sometimes(SOMETIMES, iaa.PerspectiveTransform((0, 0.05)))
+    ])
+    with tqdm.tqdm(desc="augment patches", total=1, unit="dataset") as prog:
+        masked.augment(seq)
+        prog.update(1)
+
+    plot_patches("_augmented")
 
     # ======================
     # Normalize the patches.

@@ -24,6 +24,7 @@ setup(
     'imageio',
     'tqdm',
     'psutil',
-    'scikit-learn'
+    'scikit-learn',
+    'imgaug'
   ]
 )

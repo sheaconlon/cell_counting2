@@ -2,6 +2,8 @@ import math, random
 
 import tensorflow as tf
 import numpy as np
+import imgaug as ia
+from imgaug import augmenters as iaa
 
 def smdm_normalize(images, window, padding):
     """

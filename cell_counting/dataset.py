@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 from scipy import misc
 import openpyxl
+import imgaug as ia
 
 class Dataset(object):
     """A dataset consisting of some examples of input/output pairs. Minimizes
@@ -654,6 +655,32 @@ class Dataset(object):
         to be deleted. This dataset will not be usable afterward."""
         shutil.rmtree(self._path)
         self._path = None
+
+    def augment(self, augmenter, augment_inputs=True, augment_outputs=False):
+        """Augment this dataset.
+
+        Applies transformations to the examples in this dataset to produce
+            additional examples.
+
+        Args:
+            augmenter (imgaug.augmenters.Augmenter): An augmenter.
+            augment_inputs (bool): Whether to apply the augmenter to the inputs.
+            augment_outputs (bool): Whether to apply the augmenter to the
+                outputs.
+        """
+        original_segments = self._segments
+        self._segments = 0
+        for i in range(original_segments):
+            inputs, outputs = self._load_segment(i)
+            det_augmenter = augmenter.to_deterministic()
+            if augment_inputs:
+                gen = det_augmenter.augment_batches([inputs], background=True)
+                inputs = list(gen)[0]
+            if augment_outputs:
+                gen = det_augmenter.augment_batches([outputs], background=True)
+                outputs = list(gen)[0]
+            shutil.rmtree(self._get_segment_path(self._segments))
+            self._add_segment(inputs, outputs)
 
     def _load_examples(self, example_iterator):
         inputs, outputs = [], []
