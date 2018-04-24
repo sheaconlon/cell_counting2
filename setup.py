@@ -4,7 +4,7 @@ VERSION = '0.1.6'
 
 setup(
   name = 'cell_counting',
-  packages = ['cell_counting', 'manuscript', 'data'],
+  packages = ['cell_counting', 'cell_counting.models', 'manuscript', 'data'],
   package_data={
     'data': ['*/*']
   },
