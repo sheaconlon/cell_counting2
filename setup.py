@@ -1,10 +1,13 @@
 from distutils.core import setup
 
-VERSION = '0.1.7'
+VERSION = '0.1.8'
 
 setup(
   name = 'cell_counting',
-  packages = ['cell_counting', 'cell_counting.models', 'manuscript', 'data'],
+  packages = ['cell_counting', 'cell_counting.models',
+              'cell_counting.models.segmentation',
+              'cell_counting.models.segment_counting',
+              'manuscript', 'data'],
   package_data={
     'data': ['*/*']
   },
