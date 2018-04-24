@@ -656,7 +656,8 @@ class Dataset(object):
         shutil.rmtree(self._path)
         self._path = None
 
-    def augment(self, augmenter, augment_inputs=True, augment_outputs=False):
+    def augment(self, augmenter=None, input_augmenter=None,
+                output_augmenter=None):
         """Augment this dataset.
 
         Applies transformations to the examples in this dataset to produce
@@ -672,12 +673,17 @@ class Dataset(object):
         self._segments = 0
         for i in range(original_segments):
             inputs, outputs = self._load_segment(i)
-            det_augmenter = augmenter.to_deterministic()
-            if augment_inputs:
+            if augmenter is not None:
+                det_augmenter = augmenter.to_deterministic()
                 gen = det_augmenter.augment_batches([inputs], background=True)
                 inputs = list(gen)[0]
-            if augment_outputs:
                 gen = det_augmenter.augment_batches([outputs], background=True)
+                outputs = list(gen)[0]
+            if input_augmenter is not None:
+                gen = input_augmenter.augment_batches([inputs], background=True)
+                inputs = list(gen)[0]
+            if output_augmenter is not None:
+                gen = output_augmenter.augment_batches([outputs], background=True)
                 outputs = list(gen)[0]
             shutil.rmtree(self._get_segment_path(self._segments))
             self._add_segment(inputs, outputs)
