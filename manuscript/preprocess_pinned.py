@@ -7,7 +7,6 @@ Does the following:
 Produces the following plots:
 2. resized.svg
 3. normalized.svg
-4. patch_variability.svg
 
 Saves the resulting `Dataset`s.
 
@@ -140,33 +139,3 @@ if __name__ == "__main__":
     # Make "plates_normalized.svg".
     # =============================
     plot_plates("normalized")
-
-    # =============================
-    # Make "patch_variability.svg".
-    # =============================
-    # TODO: Switch this and other preprocessing scripts over to the patch
-    #   variance distribution plot implemented in bimodality.py.
-    MIN_SIZE = 1/200
-    MAX_SIZE = 1/40
-    NUM_SIZES = 20
-    SAMPLES = 10000
-    TQDM_PARAMS = {"desc": "variability curve", "unit": "curve", "total": 1}
-
-    images, _ = data.get_all()
-    min_dim, max_dim = min(images.shape[1:2]), max(images.shape[1:2])
-    min_size_px = int(MIN_SIZE * min_dim)
-    max_size_px = math.ceil(MAX_SIZE * max_dim)
-    if min_size_px % 2 == 0:
-        min_size_px -= 1
-    if max_size_px % 2 == 0:
-        max_size_px += 1
-    min_size_px = max(min_size_px, 3)
-    max_size_px = min(max_size_px, min_dim)
-    with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
-        sizes, var_vars = preprocess.patch_variability_curve(images,
-            min_size_px, max_size_px, NUM_SIZES, SAMPLES)
-        progress_bar.update(1)
-    path = os.path.join(figure_dir, "patch_variability.svg")
-    visualization.plot_line(sizes, var_vars, "Patch Variability Curve",
-                            "patch size (px)",
-                            "variance of patch variances", 4, 10, path=path)
