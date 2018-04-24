@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("-out", type=str, required=False, default="train_svm",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-cvals", type=int, required=False, default=16,
+    parser.add_argument("-cvals", type=int, required=False, default=32,
                         help="The number of values of C to try for each"
                              " combination of the other hyperparameters.")
     args = parser.parse_args()
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     VALID_P = 0.2
     C_MIN = 1e-2
     C_MAX = 1e3
-    BINS = [3, 6, 10, 15, 21]
+    BINS = [5, 10, 20]
 
     hyper_sets = []
     for hyper_set in HYPER_SETS:
@@ -68,7 +68,6 @@ if __name__ == "__main__":
             hyper_set["C"] = C
             hyper_sets.append(hyper_set)
 
-    hyper_sets = [{'kernel': 'sigmoid', 'gamma': 'auto', 'coef0': 0, 'C': 215.44346900318823}]
     model = pinned_svm.PinnedSVM(hyper_sets, BINS)
 
     # =============
@@ -88,7 +87,7 @@ if __name__ == "__main__":
     # ============
     # Train model.
     # ============
-    results = model.train(train, valid)
+    model.train(train, valid)
 
     # =============
     # Plot results.
@@ -112,7 +111,6 @@ if __name__ == "__main__":
                     counts[i] = bin
                     break
 
-    hyper_set, valid_fscore, model = max(results, key=lambda result: result[1])
     test_inputs, test_outputs = test.get_all()
     hog_test_inputs = hog(test_inputs)
     train_inputs, train_outputs = train.get_all()
@@ -123,7 +121,8 @@ if __name__ == "__main__":
     # =============
     # TODO: MIGHT BE WRONG WAY
     # =============
-    conf = metrics.confusion_matrix(test_outputs, model.predict(hog_test_inputs))
+    predictions = model.predict(hog_test_inputs)
+    conf = metrics.confusion_matrix(test_outputs, predictions)
     path = os.path.join(args.out, "confusion_matrix.svg")
     visualization.plot_confusion_matrix(conf, "Confusion Matrix on Test Data",
                                         6, 6, path)
@@ -161,6 +160,38 @@ if __name__ == "__main__":
                             feature_vector=True)[1]
     path = os.path.join(args.out, "hog_image3.png")
     save_image(path, hog_image)
+
+    # =====================================================
+    # Make plots relating to prediction probability margin.
+    # =====================================================
+    MIN_MARGIN_MIN = 0
+    MIN_MARGIN_MAX = 5
+    NUM_MIN_MARGINS = 100
+
+    probabilities = model.predict_probs(hog_test_inputs)
+    argmax = np.argmax(probabilities, axis=1)
+    probabilities_copy = np.copy(probabilities)
+    probabilities_copy[:, argmax] = float("-inf")
+    argrunnerup = np.argmax(probabilities_copy, axis=1)
+    margins = np.empty_like(argmax, dtype=float)
+    for i in range(probabilities.shape[0]):
+        margins[i] = probabilities[i, argmax[i]] \
+                     - probabilities[i, argrunnerup[i]]
+    prediction_correctness = np.equal(predictions, test_outputs).astype(int)
+    min_margins = np.linspace(MIN_MARGIN_MIN, MIN_MARGIN_MAX,
+                              num=NUM_MIN_MARGINS)
+    accuracies = [np.average(prediction_correctness[margins >= min_margins[i]])
+                  for i in range(NUM_MIN_MARGINS)]
+    proportions = [np.average((margins >= min_margins[i]).astype(int))
+                   for i in range(NUM_MIN_MARGINS)]
+    path = os.path.join(args.out, "accuracy_vs_margin.svg")
+    visualization.plot_scatter(min_margins, accuracies,
+        "Effect of Minimum Margin on Prediction Reliability", "minimum margin",
+        "accuracy of predictions meeting minimum margin", 4, 10, path=path)
+    path = os.path.join(args.out, "proportion_vs_margin.svg")
+    visualization.plot_scatter(min_margins, proportions,
+        "Effect of Minimum Margin on Prediction Usability", "minimum margin",
+        "proportion of predictions meeting minimum margin", 4, 10, path=path)
 
     # =========
     # Clean up.

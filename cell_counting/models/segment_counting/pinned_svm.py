@@ -13,7 +13,7 @@ class PinnedSVM(object):
     _BYTES_PER_MB = 1_000_000
     _DEFAULT_HYPER_SET = {"cache_size": psutil.virtual_memory().available /
                                         _BYTES_PER_MB * 0.5,
-                          "class_weight": "balanced"}
+                          "class_weight": "balanced", "probability": True}
 
     def __init__(self, hyper_sets, bins):
         """Create a pinned SVM.
@@ -39,12 +39,6 @@ class PinnedSVM(object):
                 SVMs. Outputs are assumed to be counts.
             valid (dataset.Dataset): The validation dataset, used to assess
                 SVMs and select the best. Outputs are assumed to be counts.
-
-        Returns:
-            list(tuple): A `list` of results. Each result is a `tuple` of 3
-                elements. The first is a hyperparameter set. The second is
-                the trained model's F-beta score on ``valid``. The third is the
-                trained model.
         """
         def hog(images):
             hogs = []
@@ -109,4 +103,27 @@ class PinnedSVM(object):
                            unit="hyperparameter sets",
                            total=len(self._hyper_sets))
             results = list(results)
-        return results
+        self._model = max(results, key=lambda result: result[1])[2]
+
+    def predict(self, inputs):
+        """Make a prediction using this trained SVM.
+
+        Args:
+            inputs (numpy.ndarray): The inputs to predict the outputs for.
+
+        Returns:
+            outputs (numpy.ndarray): The predicted outputs.
+        """
+        return self._model.predict(inputs)
+
+    def predict_probs(self, inputs):
+        """Make a probabilistic prediction using this trained SVM.
+
+        Args:
+            inputs (numpy.ndarray): The inputs to predict the class
+                probabilities for.
+
+        Returns:
+            probs (numpy.ndarray): The predicted class probabilities.
+        """
+        return self._model.predict_log_proba(inputs)
