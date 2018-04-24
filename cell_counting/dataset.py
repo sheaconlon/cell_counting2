@@ -675,15 +675,15 @@ class Dataset(object):
             inputs, outputs = self._load_segment(i)
             if augmenter is not None:
                 det_augmenter = augmenter.to_deterministic()
-                gen = det_augmenter.augment_batches([inputs], background=True)
+                gen = det_augmenter.augment_batches([inputs])
                 inputs = list(gen)[0]
-                gen = det_augmenter.augment_batches([outputs], background=True)
+                gen = det_augmenter.augment_batches([outputs])
                 outputs = list(gen)[0]
             if input_augmenter is not None:
-                gen = input_augmenter.augment_batches([inputs], background=True)
+                gen = input_augmenter.augment_batches([inputs])
                 inputs = list(gen)[0]
             if output_augmenter is not None:
-                gen = output_augmenter.augment_batches([outputs], background=True)
+                gen = output_augmenter.augment_batches([outputs])
                 outputs = list(gen)[0]
             shutil.rmtree(self._get_segment_path(self._segments))
             self._add_segment(inputs, outputs)
