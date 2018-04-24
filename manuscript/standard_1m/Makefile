@@ -1,7 +1,7 @@
 run: preprocess train validate test
 
 preprocess:
-	python3.6 ../preprocess_masked.py -maxpatch 2000000
+	python3.6 ../preprocess_masked.py -maxpatches 1000000
 	python3.6 ../preprocess_easy.py
 	python3.6 ../preprocess_multi.py
 	python3.6 ../preprocess_more.py
