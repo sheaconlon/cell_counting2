@@ -67,6 +67,8 @@ if __name__ == "__main__":
     parser.add_argument("-valid", type=str, required=False,
                         default="validate",
                         help="A path to the output of validate.py.")
+    parser.add_argument("-batchsize", type=int, required=False, default=4000,
+                        help="The number of patches to hold in memory at once.")
     args = parser.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
@@ -92,7 +94,6 @@ if __name__ == "__main__":
     # ===============
     # Count 'pinned'.
     # ===============
-    BATCH_SIZE = 4000
     MASKS = ("inside", "distance", "peak", "marker", "label")
 
     def classifier(patches):
@@ -136,7 +137,7 @@ if __name__ == "__main__":
             mindist = int(args.mindist*model.PATCH_SIZE)
             mindiam = args.mindiam*model.PATCH_SIZE
             predicted, masks = postprocess.count_regions(
-                image, model.PATCH_SIZE, classifier, BATCH_SIZE,
+                image, model.PATCH_SIZE, classifier, args.batchsize,
                 mindist, mindiam, debug=True)
             count_data.append(np.array([i, count, predicted]))
         with tqdm.tqdm(desc="Saving outputs for well image #{0:d}".format(i),

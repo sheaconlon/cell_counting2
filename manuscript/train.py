@@ -18,7 +18,7 @@ Run ``python train.py -h`` to see usage details.
 # ========================================
 import sys, os
 
-root_relative_path = os.path.join(os.path.dirname(__file__), '..', '..')
+root_relative_path = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, root_relative_path)
 
 # ==========================
@@ -57,24 +57,29 @@ if __name__ == "__main__":
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-metricexamples", type=int, required=False,
-                        default=10000,
+                        default=50000,
                         help="The number of examples to use for each metric "
                              "evaluation.")
     parser.add_argument("-duration", type=int, required=False,
-                        default=60 * 2,
+                        default=60 * 4,
                         help="The (approximate) number of minutes to train "
                              "for.")
     parser.add_argument("-metricinterval", type=int, required=False,
                         default=6,
                         help="The (approximate) number of minutes to train "
                              "between metric evaluations.")
+    parser.add_argument("-trainsteps", type=int, required=False, default=50,
+                        help="The number of training steps to schedule at"
+                             " once.")
+    parser.add_argument("-batchsize", type=int, required=False, default=4000,
+                        help="The number of patches to hold in memory at once.")
     args = parser.parse_args()
 
     # =================
     # Load the dataset.
     # =================
-    train_path = os.path.join(args.maskeddir, "masked_train")
-    valid_path = os.path.join(args.maskeddir, "masked_validation")
+    train_path = os.path.join(args.maskeddir, "data", "masked_train")
+    valid_path = os.path.join(args.maskeddir, "data", "masked_validation")
     train = dataset.Dataset(train_path)
     valid = dataset.Dataset(valid_path)
 
@@ -88,6 +93,8 @@ if __name__ == "__main__":
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         save_interval = args.metricinterval * SAVE_INTERVAL_FRAC
         model = convnet1.ConvNet1(model_path, save_interval, train.size())
+        model._TRAIN_STEPS = args.trainsteps
+        model._PREDICT_BATCH_SIZE = args.batchsize
         progress_bar.update(1)
 
     # =======================
@@ -95,7 +102,6 @@ if __name__ == "__main__":
     # =======================
     POOL_SIZE = 10
     NUM_CLASSES = 3
-    PATCH_BATCH_SIZE = 3000
 
     def loss_fn(actual, predicted):
         loss = losses.make_cross_entropy_loss()(actual, predicted)

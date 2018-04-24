@@ -15,7 +15,7 @@ Does the following.
 # ========================================
 import sys, os
 
-root_path = os.path.join(os.path.dirname(__file__), '..', '..')
+root_path = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, root_path)
 
 # ==========================
@@ -55,6 +55,8 @@ if __name__ == "__main__":
                         default="validate",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
+    parser.add_argument("-batchsize", type=int, required=False, default=4000,
+                        help="The number of patches to hold in memory at once.")
     args = parser.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
 
@@ -79,22 +81,22 @@ if __name__ == "__main__":
         f.close()
         model_path = os.path.join(args.traindir, str(best_iter), "model_save")
         model = convnet1.ConvNet1(model_path, SAVE_INTERVAL, 0)
+        model._PREDICT_BATCH_SIZE = args.batchsize
         progress_bar.update(1)
 
     # ================================
     # Validate using masks_and_counts.
     # ================================
-    BATCH_SIZE = 3000
     POOL_SIZE = 10
 
     def loss_fn(actual, predicted):
         loss = losses.make_cross_entropy_loss()(actual, predicted)
         return utilities.tensor_eval(loss)
 
-    path = os.path.join(args.maskeddir, "masked_validation")
+    path = os.path.join(args.maskeddir, "data", "masked_validation")
     masks_counts = dataset.Dataset(path)
     all_actual, all_predicted = [], []
-    batch_size = min(BATCH_SIZE, masks_counts.size())
+    batch_size = min(args.batchsize, masks_counts.size())
     batches = masks_counts.get_batch_iterable(batch_size, POOL_SIZE,
                                               epochs=True)
 

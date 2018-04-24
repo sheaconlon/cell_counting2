@@ -24,7 +24,7 @@ Run ``python test.py -h`` to see usage details.
 # ========================================
 import sys, os
 
-root_relative_path = os.path.join(os.path.dirname(__file__), '..', '..')
+root_relative_path = os.path.join(os.path.dirname(__file__), '..')
 sys.path.insert(0, root_relative_path)
 
 # ==========================
@@ -93,6 +93,15 @@ if __name__ == "__main__":
                         default=1/2,
                         help="The ratio between the minimum diameter required"
                              " of colonies and the colony size.")
+    parser.add_argument("-batchsize", type=int, required=False, default=4000,
+                        help="The number of patches to hold in memory at once.")
+    parser.add_argument("-numsizes", type=int, required=False, default=10,
+                        help="The number of patch sizes to trial for the"
+                             " accuracy versus patch size plot.")
+    parser.add_argument("-trialnumpatch", type=int, required=False,
+                        default=50000,
+                        help="The number of patches to test for the accuracy"
+                             " versus patch size plot.")
     args = parser.parse_args()
     os.makedirs(os.path.join(args.outdir, "pixels"), exist_ok=True)
     os.makedirs(os.path.join(args.outdir, "counts"), exist_ok=True)
@@ -104,12 +113,12 @@ if __name__ == "__main__":
 
     with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
         masks_counts_train_path = os.path.join(args.maskeddir,
-                                  "masked_train")
+                                  "data", "masked_train")
         masks_counts_train = dataset.Dataset(masks_counts_train_path)
         progress_bar.update(1)
 
         masks_counts_valid_path = os.path.join(args.maskeddir,
-                                 "masked_validation")
+                                 "data", "masked_validation")
         masks_counts_valid = dataset.Dataset(masks_counts_valid_path)
         progress_bar.update(1)
 
@@ -151,7 +160,6 @@ if __name__ == "__main__":
     # - "counts/actual_counts/*.txt"
     # - "counts/predicted_counts/*.txt"
     # ========================================
-    BATCH_SIZE = 3000
     TQDM_PARAMS = {"desc": "count", "unit": "datasets", "total": 5}
     CONDITIONS = (
         "light_uncovered_far_noperspective",
@@ -165,7 +173,7 @@ if __name__ == "__main__":
         def classifier(patches):
             patches = preprocess.subtract_mean_normalize(patches)
             scores = model.predict(patches)
-            subprogress_bar.update(BATCH_SIZE)
+            subprogress_bar.update(patches.shape[0])
             return scores
 
         results[name] = []
@@ -187,7 +195,7 @@ if __name__ == "__main__":
                 image = images[i, ...]
                 predicted, image_dict = postprocess.count_regions(image,
                                             model.PATCH_SIZE, classifier,
-                                            BATCH_SIZE, min_dist, min_diam,
+                                            args.batchsize, min_dist, min_diam,
                                             sampling_interval=sampling,
                                             debug=True)
                 results[name].append((counts[i], predicted, image_dict))
@@ -269,10 +277,7 @@ if __name__ == "__main__":
     # Create "pixels/accuracy_vs_patch_size.svg".
     # ===========================================
     SIZE_DEVIATION = 2
-    ACTUAL_SIZES = (43, 59)
-    SIZES = 10
-    PATCHES = 10000
-    BATCH = 3000
+    ACTUAL_SIZES = (43, 36)
     POOL = 10
 
     def loss_fn(actual, predicted):
@@ -280,20 +285,21 @@ if __name__ == "__main__":
         predicted = np.argmax(predicted, axis=1)
         return np.mean(np.equal(actual, predicted))
 
-    deviations = np.geomspace(1/SIZE_DEVIATION, SIZE_DEVIATION, SIZES)
+    deviations = np.geomspace(1/SIZE_DEVIATION, SIZE_DEVIATION, args.numsizes)
     accuracies = []
     with tqdm.tqdm(desc="create pixels/accuracy_vs_patch_size.svg",
-                   unit="patch sizes", total=SIZES) as bar:
+                   unit="patch sizes", total=args.numsizes) as bar:
         for deviation in deviations:
             sizes = (round(ACTUAL_SIZES[0] * deviation),
                      round(ACTUAL_SIZES[1] * deviation))
             subprocess.call(["python3", "../preprocess_masked.py",
-                             "-maxpatch", str(PATCHES), "-easypatchsize",
+                             "-maxpatches", str(args.trialnumpatch),
+                             "-easypatchsize",
                              str(sizes[0]), "-morepatchsize",
                              str(sizes[1]), "-outdir", "test_tmp"])
             data = dataset.Dataset("test_tmp/masked_train")
             all_actual, all_predicted = [], []
-            batch = min(BATCH, data.size())
+            batch = min(args.batchsize, data.size())
             batches = data.get_batch_iterable(batch, POOL, epochs=True)
 
             with tqdm.tqdm(desc="assess deviation {0:f}".format(deviation),
