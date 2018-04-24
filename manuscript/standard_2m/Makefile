@@ -25,8 +25,8 @@ clean:
 	rm -rf preprocess_more
 	rm -rf preprocess_masked
 	rm -rf preprocess_pinned
-	rm -rf train_output
+	rm -rf train
 	rm -rf train_svm
-	rm -rf validate_output
-	rm -rf test_output
+	rm -rf validate
+	rm -rf test
 	rm -rf test_pinned
