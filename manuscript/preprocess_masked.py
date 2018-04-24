@@ -66,7 +66,7 @@ if __name__ == "__main__":
              " pixels. Must be positive.", default=59)
     parser.add_argument("-maxpatches", type=int, required=False,
         help="The maximum number of patches to produce.",
-        default=2000000)
+        default=1000000)
     parser.add_argument("-numaugs", type=int, required=False, default=10,
         help="The number of augmented versions to produce per example.")
     parser.add_argument("-numscales", type=int, required=False, default=10,
@@ -100,10 +100,11 @@ if __name__ == "__main__":
             image = image * (RGB_MAX / image_max)
         imageio.imsave(path, image.astype(np.uint8))
 
-    def plot_images(dataset, subdir, name, factor=1, start_num=0):
+    def plot_images(dataset, subdir, name, factor=1, start_num=0, limit=None):
         base = os.path.join(figure_path, subdir)
         os.makedirs(base, exist_ok=True)
         images, masks = dataset.get_all()
+        images, masks = images[:limit, ...], masks[:limit, ...]
         images, masks = images*factor, masks
         for i in range(images.shape[0]):
             filename = "{0:s}_{1:d}_{2:s}.png".format(name, start_num + i,
@@ -251,8 +252,8 @@ if __name__ == "__main__":
 
     # Plot augmented images.
     # =====================
-    plot_images(easy_masked, "augmented", "easy")
-    plot_images(more_masked, "augmented", "more")
+    plot_images(easy_masked, "augmented", "easy", limit=args.numaugs)
+    plot_images(more_masked, "augmented", "more", limit=args.numaugs)
 
     # Resize the images and masks.
     # ============================
@@ -262,7 +263,7 @@ if __name__ == "__main__":
     SCALE_MIN = 0.2
     SCALE_MODE = 0.8
     SCALE_MAX = 1.5
-    
+
     easy_factor = convnet1.ConvNet1.PATCH_SIZE / args.easypatchsize
     more_factor = convnet1.ConvNet1.PATCH_SIZE / args.morepatchsize
 
@@ -278,10 +279,10 @@ if __name__ == "__main__":
     # ====================
     for i in range(args.numscales):
         plot_images(easy_masked[i], "resized", "easy", factor=255,
-                    start_num=i*easy_masked[i].size())
+                    start_num=i*easy_masked[i].size(), limit=1)
     for i in range(args.numscales):
         plot_images(more_masked[i], "resized", "more", factor=255,
-                    start_num=i*more_masked[i].size())
+                    start_num=i*more_masked[i].size(), limit=1)
 
     # Normalize the images.
     # =====================
@@ -296,10 +297,10 @@ if __name__ == "__main__":
     # =============================
     for i in range(args.numscales):
         plot_images(easy_masked[i], "normalized", "easy",
-                    start_num=i*easy_masked[i].size(), factor=255)
+                    start_num=i*easy_masked[i].size(), factor=255, limit=1)
     for i in range(args.numscales):
         plot_images(more_masked[i], "normalized", "more",
-                    start_num=i*more_masked[i].size(), factor=255)
+                    start_num=i*more_masked[i].size(), factor=255, limit=1)
 
     # Extract patches and classes.
     # ============================
