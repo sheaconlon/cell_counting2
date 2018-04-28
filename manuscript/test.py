@@ -82,7 +82,7 @@ if __name__ == "__main__":
                         default="test",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-countsize", type=int, required=False, default=512,
+    parser.add_argument("-countsize", type=int, required=False, default=100,
                         help="The size to scale the largest dimension of"
                              " images to when counting them.")
     parser.add_argument("-mindistratio", type=float, required=False,
@@ -296,7 +296,8 @@ if __name__ == "__main__":
                              "-maxpatches", str(args.trialnumpatch),
                              "-easypatchsize",
                              str(sizes[0]), "-morepatchsize",
-                             str(sizes[1]), "-outdir", "test_tmp"])
+                             str(sizes[1]), "-outdir", "test_tmp",
+                             "-numaugs", str(2), "-numscales", str(2)])
             data = dataset.Dataset("test_tmp/masked_train")
             all_actual, all_predicted = [], []
             batch = min(args.batchsize, data.size())
