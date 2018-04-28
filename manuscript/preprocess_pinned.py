@@ -50,7 +50,7 @@ if __name__ == "__main__":
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-patchsize", type=float, required=False,
-                        default=50, help="The side length of the patches that"
+                        default=40, help="The side length of the patches that"
                                          " will be extracted, in pixels.")
     args = parser.parse_args()
 
