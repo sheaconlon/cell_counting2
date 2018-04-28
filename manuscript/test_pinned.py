@@ -53,10 +53,10 @@ if __name__ == "__main__":
                         default="test_pinned",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-mindist", type=float, required=False, default=1/2,
+    parser.add_argument("-mindist", type=float, required=False, default=1/4,
                         help="The minimum distance between colonies, expressed"
                              " as a factor of the colony size.")
-    parser.add_argument("-mindiam", type=float, required=False, default=1/2,
+    parser.add_argument("-mindiam", type=float, required=False, default=1/4,
                         help="The minimum diameter of colonies, expressed as a"
                              " factor of the colony size.")
     parser.add_argument("-pinned", type=str, required=False,
@@ -95,6 +95,7 @@ if __name__ == "__main__":
     # Count 'pinned'.
     # ===============
     MASKS = ("inside", "distance", "peak", "marker", "label")
+    SAMPLING_INTERVAL = 2
 
     def classifier(patches):
         patches = preprocess.subtract_mean_normalize(patches)
@@ -131,14 +132,16 @@ if __name__ == "__main__":
     for i in tqdm.trange(images.shape[0], desc="Counting 'pinned'",
                          unit="well images"):
         image, count = images[i, ...], counts[i]
+        est = int(image.shape[0] / SAMPLING_INTERVAL) * \
+                int(image.shape[1] / SAMPLING_INTERVAL)
         with tqdm.tqdm(desc="Counting well image #{0:d}".format(i),
-                       total=image.shape[0]*image.shape[1],
-                       unit="patches") as prog2:
-            mindist = int(args.mindist*model.PATCH_SIZE)
-            mindiam = args.mindiam*model.PATCH_SIZE
+                       total=est, unit="patches") as prog2:
+            mindist = int(args.mindist*model.PATCH_SIZE/SAMPLING_INTERVAL)
+            mindiam = args.mindiam*model.PATCH_SIZE/SAMPLING_INTERVAL
             predicted, masks = postprocess.count_regions(
                 image, model.PATCH_SIZE, classifier, args.batchsize,
-                mindist, mindiam, debug=True)
+                mindist, mindiam, sampling_interval=SAMPLING_INTERVAL,
+                debug=True)
             count_data.append(np.array([i, count, predicted]))
         with tqdm.tqdm(desc="Saving outputs for well image #{0:d}".format(i),
                        total=2+len(MASKS), unit="outputs") as prog2:
