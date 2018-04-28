@@ -57,7 +57,7 @@ if __name__ == "__main__":
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
     parser.add_argument("-metricexamples", type=int, required=False,
-                        default=50000,
+                        default=5000,
                         help="The number of examples to use for each metric "
                              "evaluation.")
     parser.add_argument("-duration", type=int, required=False,
