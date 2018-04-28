@@ -60,10 +60,10 @@ if __name__ == "__main__":
              " nonexistent.", default="preprocess_masked")
     parser.add_argument("-easypatchsize", type=float, required=False,
         help="The side length of the patches to extract from easy_masked, in"
-             " pixels. Must be positive.", default=43)
+             " pixels. Must be positive.", default=34)
     parser.add_argument("-morepatchsize", type=float, required=False,
         help="The side length of the patches to extract from more_masked, in"
-             " pixels. Must be positive.", default=59)
+             " pixels. Must be positive.", default=47)
     parser.add_argument("-maxpatches", type=int, required=False,
         help="The maximum number of patches to produce.",
         default=1000000)
