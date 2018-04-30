@@ -3,6 +3,7 @@
 Does the following:
 1. Resizes the images.
 2. Normalizes the images.
+3. Splits the dataset.
 
 Produces the following plots:
 2. resized.svg
@@ -39,6 +40,19 @@ from skimage import transform
 import numpy as np
 import tqdm
 
+
+def plot_plates(base_filename):
+    NUM_PLATES = 5
+
+    images, counts = data.get_batch(NUM_PLATES)
+    filename = "{0:s}.svg".format(base_filename)
+    path = os.path.join(figure_dir, filename)
+    counts = counts.astype(int)
+    subtitles = ["{0:d} CFU".format(counts[i]) for i in range(NUM_PLATES)]
+    visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE, "Groups",
+                              subtitles=subtitles, path=path)
+
+
 if __name__ == "__main__":
     # ===============================
     # Process command-line arguments.
@@ -52,7 +66,16 @@ if __name__ == "__main__":
     parser.add_argument("-patchsize", type=float, required=False,
                         default=40, help="The side length of the patches that"
                                          " will be extracted, in pixels.")
+    parser.add_argument("-validp", type=float, required=False,
+                        default=0.2, help="The proportion of the examples to"
+                                          " put in the validation split.")
+    parser.add_argument("-testp", type=float, required=False,
+                        default=0.2, help="The proportion of the examples to"
+                                          " put in the test split.")
     args = parser.parse_args()
+
+    assert 0 < args.validp < 1, "Argument 'validp' must be in (0, 1)."
+    assert 0 < args.testp < 1, "Argument 'testp' must be in (0, 1)."
 
     # ======================
     # Make figure directory.
@@ -75,20 +98,10 @@ if __name__ == "__main__":
     # ==================
     # Resize the images.
     # ==================
-    NUM_PLATES = 5
     GRID_COLUMNS = 5
     IMAGE_SIZE = (3, 3)
     EDGE_MODE = "reflect"
     ORDER = 3
-
-    def plot_plates(filename_suffix):
-        images, counts = data.get_batch(NUM_PLATES)
-        filename = "{0:s}.svg".format(filename_suffix)
-        path = os.path.join(figure_dir, filename)
-        counts = counts.astype(int)
-        subtitles = ["{0:d} CFU".format(counts[i]) for i in range(NUM_PLATES)]
-        visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE, "Groups",
-                                  subtitles=subtitles, path=path)
 
     tqdm_params = {"desc": "determine max size", "total": data.size(),
                    "unit": "image"}
@@ -120,7 +133,7 @@ if __name__ == "__main__":
     # ==========================
     # Make "plates_resized.svg".
     # ==========================
-    plot_plates("resized")
+    plot_plates("plates_resized")
 
     # =====================
     # Normalize the images.
@@ -138,4 +151,21 @@ if __name__ == "__main__":
     # =============================
     # Make "plates_normalized.svg".
     # =============================
-    plot_plates("normalized")
+    plot_plates("plates_normalized")
+
+    # ==================
+    # Split the dataset.
+    # ==================
+    with tqdm.tqdm(desc="splitting dataset", total=2, unit="splits") as prog:
+        path_train_valid = os.path.join(args.outdir, "pinned_train_valid")
+        path_test = os.path.join(args.outdir, "pinned_test")
+        train_valid, test = data.split(args.testp, path_train_valid, path_test)
+        prog.update(1)
+
+        validp = args.validp / (1 - args.testp)
+        path_train = os.path.join(args.outdir, "pinned_train")
+        path_valid = os.path.join(args.outdir, "pinned_valid")
+        train, valid = data.split(validp, path_train, path_valid)
+        prog.update(1)
+
+    train_valid.delete()

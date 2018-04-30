@@ -53,7 +53,7 @@ if __name__ == "__main__":
                         default="test_pinned",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
-    parser.add_argument("-mindist", type=float, required=False, default=1/4,
+    parser.add_argument("-mindist", type=float, required=False, default=1/8,
                         help="The minimum distance between colonies, expressed"
                              " as a factor of the colony size.")
     parser.add_argument("-mindiam", type=float, required=False, default=1/4,
