@@ -1,2 +1,3 @@
 .texpadtmp
 *.pdf
+train_validate_svm/model_save.pkl
