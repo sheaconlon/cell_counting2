@@ -140,18 +140,13 @@ def confidence_cutoff_analysis(probs, classes, cutoff_samples=1000):
     accs = []
     props = []
     pred_classes = np.argmax(probs, axis=1)
-    confs = []
-    for i, cls in zip(range(num_examples), classes):
-        example_probs = probs[i, ...]
-        remaining = np.concatenate(
-            (example_probs[:cls], example_probs[cls + 1:]), axis=0)
-        confs.append(stats.entropy(remaining))
+    confs = [stats.entropy(probs[i, ...]) for i in range(num_examples)]
     cutoffs = np.linspace(min(confs), max(confs), num=cutoff_samples)
     for cutoff in cutoffs:
         met_and_correct = 0
         met = 0
         for i, cls in zip(range(num_examples), classes):
-            if confs[i] >= cutoff:
+            if confs[i] <= cutoff:
                 met += 1
                 if pred_classes[i] == cls:
                     met_and_correct += 1
