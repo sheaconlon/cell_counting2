@@ -262,10 +262,11 @@ Will Ludington\textsuperscript{2} will.ludington@berkeley.edu
     
         \end{enumerate}
 
-     \paragraph*{Training}
+
+    \paragraph*{Training}
         We train the model on $64$-patch batches of the training dataset produced in \nameref{Preprocessing}, looping over the entire dataset a bit more than once\fxnote{Do a training run that loops over the dataset at least twice.} over the course of about $4$ hours. The current version of the model is saved periodically.
 
-     \paragraph*{Validation}
+    \paragraph*{Validation}
         The training step saves multiple versions of the model, each from a different point during the training process. To determine which version is best, we assess each model's accuracy (proportion of predicted outputs which are correct) on the validation dataset. We choose the model that achieves the highest accuracy to move forward with. Whereas the patches in the training dataset have been used to improve the models, the patches in the validation dataset are until now unseen by the models and therefore may provide a better measure of how they would perform on unseen data.
 
  
@@ -349,7 +350,7 @@ Will Ludington\textsuperscript{2} will.ludington@berkeley.edu
             \fillin{long}
                         
             \begin{figure}[h]
-                \includesvg[svgpath=results/train_svm/,width=0.4\textwidth]{confusion_matrix}
+                \includesvg[svgpath=results/test_svm/,width=0.4\textwidth]{confusion_matrix}
                 \caption{{\bf Predicted Count Ranges Versus Actual Count Ranges. \_\_\_} \_\_\_}
                 \label{svm_counts}
             \end{figure}
@@ -358,7 +359,7 @@ Will Ludington\textsuperscript{2} will.ludington@berkeley.edu
             SVMs are capable of outputting not only the single most likely class, but a probability for each class. Using this, we can create a metric of confidence. Taking the probability of the most likely class to be $p_1$ and the probability of the second most likely class to be $p_2$, we can consider the confidence of the SVM's prediction to be $p_1 - p_2$. Then, we can consider ignoring predictions below a certain minimum confidence level and instead counting those plates by hand. The result is that we predictions we obtain can be trusted as accurate and the predictions that the SVM cannot make reliably because the plates are too difficult can be passed on to a more appropriately skilled human counter.
             
             \begin{figure}[h]
-                \includesvg[svgpath=results/train_svm/,width=0.7\textwidth]{accuracy_vs_cutoff}
+                \includesvg[svgpath=results/test_svm/,width=0.7\textwidth]{accuracy_vs_cutoff}
                 \caption{{\bf Accuracy Versus Confidence Cutoff. The predicted counts have a strong linear relationship with the actual counts.} \_\_\_}
                 \label{svm_confidence_accuracy}
             \end{figure}
@@ -366,7 +367,7 @@ Will Ludington\textsuperscript{2} will.ludington@berkeley.edu
             In doing the above, we trade trade off prediction utilization for higher accuracy of the utilized predictions. By examining the distribution of confidence levels for the SVM's predictions, we can see that a reasonable minimum confidence cutoff might be $0.2$, since only about $10\%$ of predictions do not meet this cutoff. Looking back at Fig.~\ref{svm_confidence_accuracy}, we see that by requiring human intervention for the lowest-confidence $10\%$ of predictions, we would achieve an accuracy of about $0.76$ among the automated predictions, for an accuracy of about $0.78$ overall.\fxnote{Change the confidence metric to "entropy including highest-probability class is lower than $x$".}
             
             \begin{figure}[h]
-                \includesvg[svgpath=results/train_svm/,width=0.7\textwidth]{proportion_vs_cutoff}
+                \includesvg[svgpath=results/test_svm/,width=0.7\textwidth]{proportion_vs_cutoff}
                 \caption{{\bf Predicted Counts Versus Actual Counts. The predicted counts have a strong linear relationship with the actual counts.} \_\_\_}
                 \label{svm_confidence_proportion}
             \end{figure}
