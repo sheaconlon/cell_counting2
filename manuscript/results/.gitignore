@@ -2,3 +2,6 @@ model_save
 current_model_save
 *.pdf_tex
 model_save.pkl
+preprocess_pinned/pinned
+preprocess_pinned/pinned_*
+
