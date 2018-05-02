@@ -3,11 +3,15 @@
 Does the following:
 1. Resizes the images.
 2. Normalizes the images.
-3. Splits the dataset.
+3. Discretizes the counts.
+4. HOG-featurizes the images.
+5. Splits the dataset.
 
 Produces the following plots:
-2. resized.svg
-3. normalized.svg
+1. plates_resized.svg
+2. plates_normalized.svg
+3. plates_discretized.svg
+4. plates_hog_featurized.svg
 
 Saves the resulting `Dataset`s.
 
@@ -38,18 +42,28 @@ import argparse, math
 # ===========================
 from skimage import transform
 import numpy as np
-import tqdm
+from tqdm import tqdm
+from skimage import feature, color
+
+NUM_PLOT_PLATES = 5
+BINS = (5, 10, 20)
 
 
-def plot_plates(base_filename):
-    NUM_PLATES = 5
-
-    images, counts = data.get_batch(NUM_PLATES)
+def plot_plates(images, outputs, base_filename, discretized=False):
+    padded_bins = (0,) + BINS + ("Inf",)
     filename = "{0:s}.svg".format(base_filename)
     path = os.path.join(figure_dir, filename)
-    counts = counts.astype(int)
-    subtitles = ["{0:d} CFU".format(counts[i]) for i in range(NUM_PLATES)]
-    visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE, "Groups",
+    outputs = outputs.astype(int)
+    if discretized:
+        subtitles = []
+        for i in range(NUM_PLOT_PLATES):
+            first = str(padded_bins[outputs[i]])
+            second = str(padded_bins[outputs[i] + 1])
+            subtitles.append("{0:s}-{1:s}".format(first, second))
+    else:
+        subtitles = ["{0:d} CFU".format(outputs[i])
+                     for i in range(NUM_PLOT_PLATES)]
+    visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE, "Well Images",
                               subtitles=subtitles, path=path)
 
 
@@ -88,7 +102,7 @@ if __name__ == "__main__":
     # =================
     TQDM_PARAMS = {"desc": "load dataset", "total": 1, "unit": "dataset"}
 
-    with tqdm.tqdm(**TQDM_PARAMS) as progress_bar:
+    with tqdm(**TQDM_PARAMS) as progress_bar:
         path = os.path.join(args.outdir, "pinned")
         data = dataset.Dataset(path, 1)
         path = os.path.join(repo_path, "data", "pinned", "load.py")
@@ -106,7 +120,7 @@ if __name__ == "__main__":
     tqdm_params = {"desc": "determine max size", "total": data.size(),
                    "unit": "image"}
     max_size = float("-inf")
-    with tqdm.tqdm(**tqdm_params) as progress_bar:
+    with tqdm(**tqdm_params) as progress_bar:
         def check_size(example):
             global max_size
             image, count = example
@@ -120,7 +134,7 @@ if __name__ == "__main__":
     resize_factor = convnet1.ConvNet1.PATCH_SIZE / args.patchsize
     target_size = (round(max_size * resize_factor),
                    round(max_size * resize_factor))
-    with tqdm.tqdm(**tqdm_params) as progress_bar:
+    with tqdm(**tqdm_params) as progress_bar:
         def resize_example(example):
             image, count = example
             image = np.ascontiguousarray(image)
@@ -133,14 +147,15 @@ if __name__ == "__main__":
     # ==========================
     # Make "plates_resized.svg".
     # ==========================
-    plot_plates("plates_resized")
+    images, counts = data.get_batch(NUM_PLOT_PLATES)
+    plot_plates(images, counts, "plates_resized")
 
     # =====================
     # Normalize the images.
     # =====================
     tqdm_params = {"desc": "normalize images", "total": data.size(),
                    "unit": "image"}
-    with tqdm.tqdm(**tqdm_params) as progress_bar:
+    with tqdm(**tqdm_params) as progress_bar:
         def normalize_images(examples):
             images, counts = examples
             images = preprocess.divide_median_normalize(images)
@@ -151,12 +166,65 @@ if __name__ == "__main__":
     # =============================
     # Make "plates_normalized.svg".
     # =============================
-    plot_plates("plates_normalized")
+    images, counts = data.get_batch(NUM_PLOT_PLATES)
+    plot_plates(images, counts, "plates_normalized")
+
+    # ======================
+    # Discretize the counts.
+    # ======================
+    with tqdm(desc="Discretizing counts", unit="example",
+              total=data.size()) as prog:
+        def discretize(batch):
+            images, counts = batch
+            for i in range(counts.shape[0]):
+                for bin, bound in enumerate(BINS + (float("inf"),)):
+                    if counts[i] <= bound:
+                        counts[i] = bin
+                        break
+            prog.update(images.shape[0])
+            return images, counts
+        data.map_batch(discretize)
+
+    # ==============================
+    # Make "plates_discretized.svg".
+    # ==============================
+    images, counts = data.get_batch(NUM_PLOT_PLATES)
+    plot_plates(images, counts, "plates_discretized", discretized=True)
+
+    # =========================
+    # HOG-featurize the images.
+    # =========================
+    hog_vizs = []
+    hog_viz_counts = []
+    with tqdm(desc="HOG-featurizing images", unit="example",
+              total=data.size()) as prog:
+        def hog(example):
+            im, count = example
+            make_viz = len(hog_vizs) < NUM_PLOT_PLATES
+            result = feature.hog(im, orientations=9, pixels_per_cell=(8, 8),
+                                 cells_per_block=(3, 3), block_norm="L2-Hys",
+                                 feature_vector=True, visualize=make_viz)
+            if make_viz:
+                hog_im, viz = result
+                hog_vizs.append(viz)
+                hog_viz_counts.append(count)
+            else:
+                hog_im = result
+            prog.update(1)
+            return [(hog_im, count)]
+        data.map(hog)
+
+    # =================================
+    # Make "plates_hog_featurized.svg".
+    # =================================
+    images = np.stack(hog_vizs, axis=0)
+    counts = np.stack(hog_viz_counts, axis=0)
+    plot_plates(images, counts, "plates_hog_featurized", discretized=True)
 
     # ==================
     # Split the dataset.
     # ==================
-    with tqdm.tqdm(desc="splitting dataset", total=2, unit="splits") as prog:
+    with tqdm(desc="splitting dataset", total=2, unit="splits") as prog:
         path_train_valid = os.path.join(args.outdir, "pinned_train_valid")
         path_test = os.path.join(args.outdir, "pinned_test")
         train_valid, test = data.split(args.testp, path_train_valid, path_test)

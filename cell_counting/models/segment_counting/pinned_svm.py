@@ -1,129 +1,42 @@
-from multiprocessing.dummy import Pool
-
 import psutil
-from tqdm import tqdm
 from sklearn.svm import SVC
-from sklearn import metrics
-import numpy as np
-from skimage import feature, color
+
 
 class PinnedSVM(object):
-    """An SVM for classifying the density of a pinned plate well."""
-
     _BYTES_PER_MB = 1_000_000
-    _DEFAULT_HYPER_SET = {"cache_size": psutil.virtual_memory().available /
-                                        _BYTES_PER_MB * 0.5,
-                          "class_weight": "balanced", "probability": True}
+    _DEFAULT_MEMORY_PROP = 0.5
+    _DEFAULT_HYPERS = {"class_weight": "balanced", "probability": True}
 
-    def __init__(self, hyper_sets, bins):
-        """Create a pinned SVM.
+    def __init__(self, **hypers):
+        def check_hypers(hypers, name):
+            if name not in hypers:
+                raise ValueError(
+                    "hyperparameter '{0:s}' not supplied".format(name))
+        check_hypers(hypers, "C")
+        check_hypers(hypers, "kernel")
+        if hypers["kernel"] == "poly":
+            check_hypers(hypers, "degree")
+            check_hypers(hypers, "gamma")
+            check_hypers(hypers, "coef0")
+        elif hypers["kernel"] == "rbf":
+            check_hypers(hypers, "gamma")
+        elif hypers["kernel"] == "sigmoid":
+            check_hypers(hypers, "gamma")
+            check_hypers(hypers, "coef0")
+        else:
+            raise ValueError("unsupported value supplied for 'kernel'")
+        all_hypers = self._DEFAULT_HYPERS.copy()
+        all_hypers["cache_size"] = (psutil.virtual_memory().available /
+            self._BYTES_PER_MB * self._DEFAULT_MEMORY_PROP)
+        all_hypers.update(hypers)
+        self._model = SVC(**all_hypers)
 
-        Args:
-            hyper_sets (list(dict)): A `list` of hyperparameter sets. A
-                hyperparameter set is a `dict`. Its keys are `str`s which are
-                some of the parameter names for `sklearn.svm.SVC`. Its values
-                are the corresponding arguments to be used in creating a
-                `sklearn.svm.SVC`.
-            bins (list(int)): Bin boundaries (inclusive maximums) for
-                discretizing counts.
-        """
-        self._hyper_sets = hyper_sets
-        self._bins = bins
-        self._model = None
-
-    def train(self, train, valid):
-        """Train this pinned SVM.
-
-        Args:
-            train (dataset.Dataset): The training dataset, used to train
-                SVMs. Outputs are assumed to be counts.
-            valid (dataset.Dataset): The validation dataset, used to assess
-                SVMs and select the best. Outputs are assumed to be counts.
-        """
-        def hog(images):
-            hogs = []
-            for i in tqdm(range(images.shape[0]), desc="Computing HOG",
-                          unit="images"):
-                image = color.rgb2grey(images[i, ...])
-                hogs.append(feature.hog(image, orientations=9,
-                    pixels_per_cell=(8, 8), cells_per_block=(3, 3),
-                    block_norm="L2-Hys", feature_vector=True))
-            return np.stack(hogs, axis=0)
-
-        def discretize(counts):
-            for i in range(counts.shape[0]):
-                for bin, bound in enumerate(self._bins + [float("inf")]):
-                    if counts[i] <= bound:
-                        counts[i] = bin
-                        break
-
-        def check_hyper(hyper_set, hyper):
-            if hyper not in hyper_set:
-                raise ValueError("hyperparameter set does not supply a value "
-                                 " for '{0:s}'".format(hyper))
-
-        def evaluate_hyper_set(hyper_set):
-                check_hyper(hyper_set, "C")
-                check_hyper(hyper_set, "kernel")
-                if hyper_set["kernel"] == "poly":
-                    check_hyper(hyper_set, "degree")
-                    check_hyper(hyper_set, "gamma")
-                    check_hyper(hyper_set, "coef0")
-                elif hyper_set["kernel"] == "rbf":
-                    check_hyper(hyper_set, "gamma")
-                elif hyper_set["kernel"] == "sigmoid":
-                    check_hyper(hyper_set, "gamma")
-                    check_hyper(hyper_set, "coef0")
-                else:
-                    raise ValueError("hyperparameter set supplies unsupported"
-                                     " value for 'kernel'")
-                defaults = self._DEFAULT_HYPER_SET.copy()
-                defaults.update(hyper_set)
-                hyper_set = defaults
-                model = SVC(**hyper_set)
-                model.fit(train_inputs, train_outputs)
-                predicted = model.predict(valid_inputs)
-                fscore = metrics.precision_recall_fscore_support(
-                    valid_outputs, predicted, average="weighted")[2]
-                return hyper_set, fscore, model
-
-        train_inputs, train_outputs = train.get_all()
-        train_inputs = hog(train_inputs)
-        norm_factor = np.amax(train_inputs)
-        train_inputs /= norm_factor
-        discretize(train_outputs)
-        valid_inputs, valid_outputs = valid.get_all()
-        valid_inputs = hog(valid_inputs)
-        valid_inputs /= norm_factor
-        discretize(valid_outputs)
-
-        with Pool(psutil.cpu_count(logical=False)) as pool:
-            results = pool.imap(evaluate_hyper_set, self._hyper_sets, 1)
-            results = tqdm(results, desc="Train models",
-                           unit="hyperparameter sets",
-                           total=len(self._hyper_sets))
-            results = list(results)
-        self._model = max(results, key=lambda result: result[1])[2]
+    def train(self, inputs, outputs):
+        self._model.fit(inputs, outputs)
 
     def predict(self, inputs):
-        """Make a prediction using this trained SVM.
-
-        Args:
-            inputs (numpy.ndarray): The inputs to predict the outputs for.
-
-        Returns:
-            outputs (numpy.ndarray): The predicted outputs.
-        """
         return self._model.predict(inputs)
 
     def predict_probs(self, inputs):
-        """Make a probabilistic prediction using this trained SVM.
+        return self._model.predict_proba(inputs)
 
-        Args:
-            inputs (numpy.ndarray): The inputs to predict the class
-                probabilities for.
-
-        Returns:
-            probs (numpy.ndarray): The predicted class probabilities.
-        """
-        return self._model.predict_log_proba(inputs)

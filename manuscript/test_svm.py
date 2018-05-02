@@ -27,31 +27,8 @@ from argparse import ArgumentParser
 import numpy as np
 from tqdm import tqdm
 from sklearn import metrics
-from skimage import feature, color
 import imageio
 from sklearn.externals import joblib
-
-
-def hog(images):
-    hogs = []
-    for i in tqdm(range(images.shape[0]), desc="Computing HOG",
-                  unit="images"):
-        image = color.rgb2grey(images[i, ...])
-        hogs.append(feature.hog(image, orientations=9,
-                                pixels_per_cell=(8, 8),
-                                cells_per_block=(3, 3),
-                                block_norm="L2-Hys", feature_vector=True))
-    return np.stack(hogs, axis=0)
-
-
-def discretize(counts):
-    BINS = [5, 10, 20]
-
-    for i in range(counts.shape[0]):
-        for bin, bound in enumerate(BINS + [float("inf")]):
-            if counts[i] <= bound:
-                counts[i] = bin
-                break
 
 
 def save_image(path, image):
@@ -109,23 +86,9 @@ if __name__ == "__main__":
     # ===========
     # Test model.
     # ===========
-    with tqdm(desc="Determining normalization factor", total=1,
-              unit="normalization factors") as prog:
-        train_inputs, train_outputs = train.get_all()
-        train_inputs = hog(train_inputs)
-        norm_factor = np.amax(train_inputs)
-        prog.update(1)
-
-    with tqdm(desc="Preprocessing test dataset", total=1,
-              unit="datasets") as prog:
-        test_inputs, test_outputs = test.get_all()
-        test_inputs_hog = hog(test_inputs)
-        test_inputs_hog /= norm_factor
-        discretize(test_outputs)
-        prog.update(1)
-
     with tqdm(desc="Testing model", total=1, unit="datasets") as prog:
-        predictions = model.predict(test_inputs_hog)
+        test_images, test_classes = test.get_all()
+        pred_test_classes = model.predict(test_images)
         prog.update(1)
 
     # ======================
@@ -133,34 +96,20 @@ if __name__ == "__main__":
     # ======================
     with tqdm(desc="Making confusion matrix", total=1,
               unit="confusion matrices") as prog:
-        conf = metrics.confusion_matrix(test_outputs, predictions)
+        conf = metrics.confusion_matrix(test_classes, pred_test_classes)
         path = os.path.join(args.out, "confusion_matrix.svg")
         visualization.plot_confusion_matrix(conf,
             "Confusion Matrix on Test Data", 6, 6, path)
         prog.update(1)
-
-    # ===============
-    # Make HOG plots.
-    # ===============
-    HOG_PLOTS = 3
-
-    for i in tqdm(range(HOG_PLOTS), desc="Making HOG plots", unit="HOG plots"):
-        image = color.rgb2grey(test_inputs[i, ...])
-        hog_image = feature.hog(image, orientations=9,
-                                pixels_per_cell=(8, 8), cells_per_block=(3, 3),
-                                block_norm="L2-Hys", visualise=True,
-                                feature_vector=True)[1]
-        path = os.path.join(args.out, "hog", "{0}.png".format(i))
-        save_image(path, hog_image)
 
     # =====================================
     # Make confidence cutoff-related plots.
     # =====================================
     with tqdm(desc="Testing model for probabilities", total=1,
               unit="models") as prog:
-        probs = model.predict_proba(test_inputs_hog)
+        probs = model.predict_probs(test_images)
         cutoffs, accs, props = \
-            postprocess.confidence_cutoff_analysis(probs, test_outputs)
+            postprocess.confidence_cutoff_analysis(probs, test_classes)
         prog.update(1)
 
     with tqdm(desc="Making confidence cutoff plots", total=2,
