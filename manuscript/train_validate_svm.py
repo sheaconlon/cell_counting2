@@ -22,6 +22,7 @@ from cell_counting import dataset
 # ===============================
 from argparse import ArgumentParser
 from multiprocessing import Pool
+import os
 
 # =================================
 # Import from third-party packages.
@@ -33,6 +34,7 @@ from sklearn import metrics
 
 
 def train_validate_svm(hypers):
+    os.sched_setaffinity(os.getpid(), range(os.cpu_count()))
     train_path = os.path.join(args.pinned, "pinned_train")
     train = dataset.Dataset(train_path)
     train_images, train_classes = train.get_all()
