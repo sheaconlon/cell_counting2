@@ -4,10 +4,9 @@ from sklearn.svm import SVC
 
 class PinnedSVM(object):
     _BYTES_PER_MB = 1_000_000
-    _DEFAULT_MEMORY_PROP = 0.5
     _DEFAULT_HYPERS = {"class_weight": "balanced", "probability": True}
 
-    def __init__(self, **hypers):
+    def __init__(self, memory_prop, **hypers):
         def check_hypers(hypers, name):
             if name not in hypers:
                 raise ValueError(
@@ -27,7 +26,7 @@ class PinnedSVM(object):
             raise ValueError("unsupported value supplied for 'kernel'")
         all_hypers = self._DEFAULT_HYPERS.copy()
         all_hypers["cache_size"] = (psutil.virtual_memory().available /
-            self._BYTES_PER_MB * self._DEFAULT_MEMORY_PROP)
+            self._BYTES_PER_MB * memory_prop)
         all_hypers.update(hypers)
         self._model = SVC(**all_hypers)
 

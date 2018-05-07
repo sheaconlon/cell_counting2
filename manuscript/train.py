@@ -65,7 +65,7 @@ if __name__ == "__main__":
                         help="The (approximate) number of minutes to train "
                              "for.")
     parser.add_argument("-metricinterval", type=int, required=False,
-                        default=6,
+                        default=10,
                         help="The (approximate) number of minutes to train "
                              "between metric evaluations.")
     parser.add_argument("-trainsteps", type=int, required=False, default=50,

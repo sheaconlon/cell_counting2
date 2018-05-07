@@ -292,13 +292,13 @@ if __name__ == "__main__":
         for deviation in deviations:
             sizes = (round(ACTUAL_SIZES[0] * deviation),
                      round(ACTUAL_SIZES[1] * deviation))
-            subprocess.call(["python3", "../preprocess_masked.py",
+            subprocess.call(["python3", "preprocess_masked.py",
                              "-maxpatches", str(args.trialnumpatch),
                              "-easypatchsize",
                              str(sizes[0]), "-morepatchsize",
                              str(sizes[1]), "-outdir", "test_tmp",
                              "-numaugs", str(2), "-numscales", str(2)])
-            data = dataset.Dataset("test_tmp/masked_train")
+            data = dataset.Dataset("test_tmp/masked_patched")
             all_actual, all_predicted = [], []
             batch = min(args.batchsize, data.size())
             batches = data.get_batch_iterable(batch, POOL, epochs=True)

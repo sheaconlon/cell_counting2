@@ -38,7 +38,7 @@ def train_validate_svm(hypers):
     train_path = os.path.join(args.pinned, "pinned_train")
     train = dataset.Dataset(train_path)
     train_images, train_classes = train.get_all()
-    svm = PinnedSVM(**hypers)
+    svm = PinnedSVM(1/args.processes * 1/2, **hypers)
     svm.train(train_images, train_classes)
     valid_path = os.path.join(args.pinned, "pinned_valid")
     valid = dataset.Dataset(valid_path)
@@ -82,8 +82,8 @@ if __name__ == "__main__":
                   {"kernel": "poly", "degree": 2, "gamma": "auto", "coef0": 0},
                   {"kernel": "poly", "degree": 3, "gamma": "auto", "coef0": 0},
                   {"kernel": "sigmoid", "gamma": "auto", "coef0": 0}]
-    C_MIN = 1e-2
-    C_MAX = 1e3
+    C_MIN = pow(10, 0)
+    C_MAX = pow(10, 2)
 
     hyper_sets = []
     for hypers in HYPER_SETS:

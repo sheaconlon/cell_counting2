@@ -562,10 +562,11 @@ class Dataset(object):
 
         def _replenish(self):
             while (self._pool_top + 1) <= self._pool_min:
-                try:
-                    segment = self._segment_use_map.index(False)
-                except ValueError:
+                choices = list(i for i, used in enumerate(
+                               self._segment_use_map) if not used)
+                if len(choices) == 0:
                     break
+                segment = random.choice(choices)
                 self._segment_use_map[segment] = True
                 inputs, outputs = self._dataset._load_segment(segment)
                 new_pool_top = self._pool_top + inputs.shape[0]

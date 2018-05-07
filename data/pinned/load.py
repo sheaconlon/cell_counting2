@@ -21,8 +21,6 @@ def load():
         for col in range(12):
             for row in range(8):
                 count = wksht[chr(ord('A') + col) + str(row + 1)].value
-                if count == -1:
-                    continue
 
                 xmin = round(wksht['C20'].value + dxdcol*(col-0.5) +
                              dxdrow*(row-0.5))

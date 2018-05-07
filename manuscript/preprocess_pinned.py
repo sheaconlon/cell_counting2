@@ -1,11 +1,12 @@
 """Preprocesses the ``pinned`` dataset.
 
 Does the following:
-1. Resizes the images.
-2. Normalizes the images.
-3. Discretizes the counts.
-4. HOG-featurizes the images.
-5. Splits the dataset.
+1. Augments the images.
+2. Resizes the images.
+3. Normalizes the images.
+4. Discretizes the counts.
+5. HOG-featurizes the images.
+6. Splits the dataset.
 
 Produces the following plots:
 1. plates_resized.svg
@@ -44,6 +45,7 @@ from skimage import transform
 import numpy as np
 from tqdm import tqdm
 from skimage import feature, color
+from imgaug import augmenters as iaa
 
 NUM_PLOT_PLATES = 5
 BINS = (5, 10, 20)
@@ -57,14 +59,25 @@ def plot_plates(images, outputs, base_filename, discretized=False):
     if discretized:
         subtitles = []
         for i in range(NUM_PLOT_PLATES):
-            first = str(padded_bins[outputs[i]])
-            second = str(padded_bins[outputs[i] + 1])
-            subtitles.append("{0:s}-{1:s}".format(first, second))
+            if outputs[i] == 0:
+                subtitles.append("OUTLIER")
+            else:
+                first = str(padded_bins[outputs[i] - 1])
+                second = str(padded_bins[outputs[i]])
+                subtitles.append("{0:s}-{1:s}".format(first, second))
     else:
         subtitles = ["{0:d} CFU".format(outputs[i])
                      for i in range(NUM_PLOT_PLATES)]
     visualization.plot_images(images, GRID_COLUMNS, IMAGE_SIZE, "Well Images",
                               subtitles=subtitles, path=path)
+
+def make_duplicator(factor):
+    def duplicate_batch(batch):
+        inputs, outputs = batch
+        inputs = np.concatenate([inputs] * factor, axis=0)
+        outputs = np.concatenate([outputs] * factor, axis=0)
+        return inputs, outputs
+    return duplicate_batch
 
 
 if __name__ == "__main__":
@@ -77,6 +90,9 @@ if __name__ == "__main__":
                         default="preprocess_pinned",
                         help="A path to a directory in which to save output."
                              " Will be created if nonexistent.")
+    parser.add_argument("-numaugs", type=int, required=False, default=2,
+                        help = "The number of augmented versions to produce per"
+                               " example.")
     parser.add_argument("-patchsize", type=float, required=False,
                         default=40, help="The side length of the patches that"
                                          " will be extracted, in pixels.")
@@ -86,10 +102,13 @@ if __name__ == "__main__":
     parser.add_argument("-testp", type=float, required=False,
                         default=0.2, help="The proportion of the examples to"
                                           " put in the test split.")
+    parser.add_argument("-sizefactor", type=float, required=False,
+                        default=1, help="A factor to scale the well images by.")
     args = parser.parse_args()
 
     assert 0 < args.validp < 1, "Argument 'validp' must be in (0, 1)."
     assert 0 < args.testp < 1, "Argument 'testp' must be in (0, 1)."
+    assert args.sizefactor > 0, "argument 'sizefactor' must be positive"
 
     # ======================
     # Make figure directory.
@@ -108,6 +127,35 @@ if __name__ == "__main__":
         path = os.path.join(repo_path, "data", "pinned", "load.py")
         data.load(path)
         progress_bar.update(1)
+
+    # # ===================
+    # # Augment the images.
+    # # ===================
+    # OFTEN, SOMETIMES, RARELY = 0.25, 0.05, 0.02
+    #
+    # inputs = iaa.Sequential([
+    #     iaa.Fliplr(OFTEN),
+    #     iaa.Flipud(OFTEN),
+    #     iaa.Sometimes(SOMETIMES, iaa.PerspectiveTransform((0, 0.05))),
+    #     iaa.Invert(RARELY, per_channel=True),
+    #     iaa.Sometimes(SOMETIMES, iaa.Add((-45, 45), per_channel=True)),
+    #     iaa.Sometimes(RARELY,
+    #                   iaa.AddToHueAndSaturation(value=(-15, 15),
+    #                                             from_colorspace="RGB")),
+    #     iaa.Sometimes(SOMETIMES, iaa.GaussianBlur(sigma=(0, 1))),
+    #     iaa.Sometimes(RARELY,
+    #                   iaa.Sharpen(alpha=(0, 0.25), lightness=(0.9, 1.1))),
+    #     iaa.Sometimes(SOMETIMES,
+    #                   iaa.AdditiveGaussianNoise(scale=(0, 0.02 * 255))),
+    #     iaa.SaltAndPepper(SOMETIMES),
+    #     iaa.Sometimes(SOMETIMES, iaa.ContrastNormalization((0.5, 1.5))),
+    #     iaa.Sometimes(SOMETIMES, iaa.Grayscale(alpha=(0.0, 1.0)))
+    # ])
+    #
+    # with tqdm(desc="augment images", total=1, unit="dataset") as prog:
+    #     data.map_batch(make_duplicator(args.numaugs))
+    #     data.augment(input_augmenter=inputs)
+    #     prog.update(1)
 
     # ==================
     # Resize the images.
@@ -131,7 +179,8 @@ if __name__ == "__main__":
 
     tqdm_params = {"desc": "resize images", "total": data.size(),
                    "unit": "image"}
-    resize_factor = convnet1.ConvNet1.PATCH_SIZE / args.patchsize
+    resize_factor = convnet1.ConvNet1.PATCH_SIZE / args.patchsize \
+                                                            * args.sizefactor
     target_size = (round(max_size * resize_factor),
                    round(max_size * resize_factor))
     with tqdm(**tqdm_params) as progress_bar:
@@ -177,10 +226,13 @@ if __name__ == "__main__":
         def discretize(batch):
             images, counts = batch
             for i in range(counts.shape[0]):
-                for bin, bound in enumerate(BINS + (float("inf"),)):
-                    if counts[i] <= bound:
-                        counts[i] = bin
-                        break
+                if counts[i] == -1:
+                    counts[i] = 0
+                else:
+                    for bin, bound in enumerate(BINS + (float("inf"),)):
+                        if counts[i] <= bound:
+                            counts[i] = bin + 1
+                            break
             prog.update(images.shape[0])
             return images, counts
         data.map_batch(discretize)
