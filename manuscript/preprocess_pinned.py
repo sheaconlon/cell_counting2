@@ -104,6 +104,9 @@ if __name__ == "__main__":
                                           " put in the test split.")
     parser.add_argument("-sizefactor", type=float, required=False,
                         default=1, help="A factor to scale the well images by.")
+    parser.add_argument("-datapath", type=str, required=False,
+                        default=os.path.join(repo_path, "data", "pinned"),
+                        help="The path to a pinned dataset.")
     args = parser.parse_args()
 
     assert 0 < args.validp < 1, "Argument 'validp' must be in (0, 1)."
@@ -124,38 +127,39 @@ if __name__ == "__main__":
     with tqdm(**TQDM_PARAMS) as progress_bar:
         path = os.path.join(args.outdir, "pinned")
         data = dataset.Dataset(path, 1)
-        path = os.path.join(repo_path, "data", "pinned", "load.py")
+        path = os.path.join(args.datapath, "load.py")
         data.load(path)
         progress_bar.update(1)
 
-    # # ===================
-    # # Augment the images.
-    # # ===================
-    # OFTEN, SOMETIMES, RARELY = 0.25, 0.05, 0.02
-    #
-    # inputs = iaa.Sequential([
-    #     iaa.Fliplr(OFTEN),
-    #     iaa.Flipud(OFTEN),
-    #     iaa.Sometimes(SOMETIMES, iaa.PerspectiveTransform((0, 0.05))),
-    #     iaa.Invert(RARELY, per_channel=True),
-    #     iaa.Sometimes(SOMETIMES, iaa.Add((-45, 45), per_channel=True)),
-    #     iaa.Sometimes(RARELY,
-    #                   iaa.AddToHueAndSaturation(value=(-15, 15),
-    #                                             from_colorspace="RGB")),
-    #     iaa.Sometimes(SOMETIMES, iaa.GaussianBlur(sigma=(0, 1))),
-    #     iaa.Sometimes(RARELY,
-    #                   iaa.Sharpen(alpha=(0, 0.25), lightness=(0.9, 1.1))),
-    #     iaa.Sometimes(SOMETIMES,
-    #                   iaa.AdditiveGaussianNoise(scale=(0, 0.02 * 255))),
-    #     iaa.SaltAndPepper(SOMETIMES),
-    #     iaa.Sometimes(SOMETIMES, iaa.ContrastNormalization((0.5, 1.5))),
-    #     iaa.Sometimes(SOMETIMES, iaa.Grayscale(alpha=(0.0, 1.0)))
-    # ])
-    #
-    # with tqdm(desc="augment images", total=1, unit="dataset") as prog:
-    #     data.map_batch(make_duplicator(args.numaugs))
-    #     data.augment(input_augmenter=inputs)
-    #     prog.update(1)
+    if args.numaugs != -1:
+        # ===================
+        # Augment the images.
+        # ===================
+        OFTEN, SOMETIMES, RARELY = 0.25, 0.05, 0.02
+
+        inputs = iaa.Sequential([
+            iaa.Fliplr(OFTEN),
+            iaa.Flipud(OFTEN),
+            iaa.Sometimes(SOMETIMES, iaa.PerspectiveTransform((0, 0.05))),
+            iaa.Invert(RARELY, per_channel=True),
+            iaa.Sometimes(SOMETIMES, iaa.Add((-45, 45), per_channel=True)),
+            iaa.Sometimes(RARELY,
+                          iaa.AddToHueAndSaturation(value=(-15, 15),
+                                                    from_colorspace="RGB")),
+            iaa.Sometimes(SOMETIMES, iaa.GaussianBlur(sigma=(0, 1))),
+            iaa.Sometimes(RARELY,
+                          iaa.Sharpen(alpha=(0, 0.25), lightness=(0.9, 1.1))),
+            iaa.Sometimes(SOMETIMES,
+                          iaa.AdditiveGaussianNoise(scale=(0, 0.02 * 255))),
+            iaa.SaltAndPepper(SOMETIMES),
+            iaa.Sometimes(SOMETIMES, iaa.ContrastNormalization((0.5, 1.5))),
+            iaa.Sometimes(SOMETIMES, iaa.Grayscale(alpha=(0.0, 1.0)))
+        ])
+
+        with tqdm(desc="augment images", total=1, unit="dataset") as prog:
+            data.map_batch(make_duplicator(args.numaugs))
+            data.augment(input_augmenter=inputs)
+            prog.update(1)
 
     # ==================
     # Resize the images.

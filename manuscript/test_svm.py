@@ -89,6 +89,8 @@ if __name__ == "__main__":
     with tqdm(desc="Testing model", total=1, unit="datasets") as prog:
         test_images, test_classes = test.get_all()
         pred_test_classes = model.predict(test_images)
+        np.savetxt(os.path.join(args.out, "well_counts.csv"),
+                                pred_test_classes)
         prog.update(1)
 
     # ======================

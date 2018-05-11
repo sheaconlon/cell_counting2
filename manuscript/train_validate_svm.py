@@ -34,7 +34,8 @@ from sklearn import metrics
 
 
 def train_validate_svm(hypers):
-    os.sched_setaffinity(os.getpid(), range(os.cpu_count()))
+    if hasattr(os, "sched_setaffinity"):
+        os.sched_setaffinity(os.getpid(), range(os.cpu_count()))
     train_path = os.path.join(args.pinned, "pinned_train")
     train = dataset.Dataset(train_path)
     train_images, train_classes = train.get_all()
